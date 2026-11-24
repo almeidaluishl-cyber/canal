@@ -58,6 +58,10 @@ main{overflow:auto;padding:16px}
 .tile video{width:100%;height:100%;object-fit:contain;display:block}
 .tile .lbl{position:absolute;left:10px;bottom:10px;background:#000a;padding:4px 10px;border-radius:8px;font-size:13px}
 .tile .st{position:absolute;right:10px;top:10px;background:#000a;padding:3px 8px;border-radius:8px;font-size:12px;color:#cfd3dc;font-variant-numeric:tabular-nums}
+.tile .lv{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:6px;background:#000a;padding:3px 8px;border-radius:8px;font-size:12px;color:#cfd3dc}
+.tile .lv b{display:block;width:56px;height:6px;border-radius:3px;background:#ffffff26;overflow:hidden}
+.tile .lv i{display:block;height:100%;width:0;background:var(--ok);transition:width .12s}
+.tile .lv.mute{color:#ff8a98}
 .tile .tb{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:70%}
 .tile .tb button,.tile .tb label{min-height:34px;padding:4px 10px;font-size:13px;background:#000a;border-radius:8px}
 .tile .tb label{display:flex;align-items:center;gap:6px;cursor:pointer}
@@ -533,7 +537,7 @@ async function startShare() {
   if (wantAudio) {
     audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
     try { if (navigator.mediaDevices.getSupportedConstraints().restrictOwnAudio) audio.restrictOwnAudio = true; } catch (e) {}
-    toast('Para levar o som: escolha "Tela inteira" e ative "Compartilhar áudio do sistema" (ou uma aba com "Compartilhar áudio da guia").', 8000);
+    toast('Som de jogo ou programa: escolha "Tela inteira" e ative "Compartilhar áudio do sistema". Som de uma aba do navegador (YouTube, Twitch): escolha a própria aba e ative "Compartilhar áudio da guia".', 10000);
   }
   picking = true; $('#share').disabled = true;
   try {
@@ -629,7 +633,7 @@ function showTile(p, stream, self) {
   removeTile(p.id);
   const t = document.createElement('div');
   t.className = 'tile'; t.id = 'tile-' + p.id; t._stream = stream;
-  t.innerHTML = `<video autoplay playsinline></video><span class="lbl">${esc(p.name)}</span><span class="st">…</span><div class="tb">${self ? '' : '<label title="Volume desta transmissão">Som <input type="range" min="0" max="1" step="0.05" value="1"></label>'}<button data-a="focus">Ampliar</button><button data-a="full">Tela cheia</button></div>`;
+  t.innerHTML = `<video autoplay playsinline></video><span class="lbl">${esc(p.name)}</span><span class="st">…</span><span class="lv"><span class="lvt">som</span><b><i></i></b></span><div class="tb">${self ? '' : '<label title="Volume desta transmissão">Som <input type="range" min="0" max="1" step="0.05" value="1"></label>'}<button data-a="focus">Ampliar</button><button data-a="full">Tela cheia</button></div>`;
   const v = t.querySelector('video');
   v.muted = !!self || deaf; v.srcObject = stream;
   playSafe(v);
@@ -638,6 +642,7 @@ function showTile(p, stream, self) {
   t.querySelector('[data-a=focus]').onclick = () => toggleFocus(t);
   t.querySelector('[data-a=full]').onclick = () => { const r = t.requestFullscreen ? t.requestFullscreen() : v.requestFullscreen(); if (r && r.catch) r.catch(() => {}); };
   measure(v, t.querySelector('.st'), stream);
+  audioMeter(t, stream, !!self);
   $('#stage').appendChild(t);
   updateEmpty();
 }
@@ -663,13 +668,41 @@ function measure(v, label, stream) {
     n++;
     const now = performance.now();
     if (now - t0 >= 1000) {
-      const sound = stream.getAudioTracks().length ? '' : ' · sem som';
-      label.textContent = `${v.videoWidth}×${v.videoHeight} · ${Math.round(n * 1000 / (now - t0))} fps${sound}`;
+      label.textContent = `${v.videoWidth}×${v.videoHeight} · ${Math.round(n * 1000 / (now - t0))} fps`;
       n = 0; t0 = now;
     }
     next();
   };
   next();
+}
+
+function audioMeter(t, stream, self) {
+  const box = t.querySelector('.lv'), bar = box.querySelector('i'), txt = box.querySelector('.lvt');
+  const started = Date.now();
+  let an = null, buf = null, src = null, loudAt = 0, warned = false;
+  const attach = () => {
+    const at = stream.getAudioTracks()[0];
+    if (!at || an) return;
+    try { src = actx.createMediaStreamSource(new MediaStream([at])); an = actx.createAnalyser(); an.fftSize = 1024; src.connect(an); buf = new Float32Array(an.fftSize); } catch (e) {}
+  };
+  attach();
+  stream.addEventListener('addtrack', attach);
+  const iv = setInterval(() => {
+    if (!t.isConnected) { clearInterval(iv); try { src && src.disconnect(); } catch (e) {} return; }
+    if (!an) { txt.textContent = 'sem som'; box.classList.add('mute'); bar.style.width = '0'; return; }
+    an.getFloatTimeDomainData(buf);
+    let s = 0; for (const x of buf) s += x * x;
+    const rms = Math.sqrt(s / buf.length);
+    bar.style.width = Math.min(100, Math.round(rms * 500)) + '%';
+    if (rms > 0.002) loudAt = Date.now();
+    const quiet = Date.now() - loudAt > 3000;
+    txt.textContent = quiet ? 'som mudo' : 'som';
+    box.classList.toggle('mute', quiet);
+    if (self && !warned && !loudAt && Date.now() - started > 8000) {
+      warned = true;
+      toast('Não estou ouvindo nada na sua transmissão. Se o som vem de uma aba do navegador (YouTube, Twitch), transmita a própria aba com "Compartilhar áudio da guia". Se vem de um jogo, confira se ele toca no fone ou caixa padrão do Windows.', 14000);
+    }
+  }, 150);
 }
 
 // ---------- indicador de fala ----------
