@@ -7,16 +7,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#16171b;--side:#1d1f24;--panel:#24262d;--line:#30333b;--ink:#e9eaee;--dim:#9a9eab;--acc:#6c7cff;--ok:#2fd17a;--bad:#f0475a}
+:root{--bg:#16171b;--side:#1d1f24;--panel:#24262d;--line:#30333b;--ink:#e9eaee;--dim:#9a9eab;--acc:#6c7cff;--ok:#2fd17a;--warn:#f5b83d;--bad:#f0475a}
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Rubik,system-ui,sans-serif;overflow:hidden}
-button,input{font:inherit;color:inherit}
+button,input,select{font:inherit;color:inherit}
 button{cursor:pointer;border:0;border-radius:10px;background:var(--panel);padding:10px 14px;min-height:44px}
-button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-input{background:#101115;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px;width:100%}
+button:disabled{opacity:.6;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.field{background:#101115;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px;width:100%}
+select{background:var(--panel);border:0;border-radius:10px;padding:0 10px;min-height:44px;max-width:240px;cursor:pointer}
 .hide{display:none!important}
-/* entrada */
 #join{height:100%;display:grid;place-items:center;padding:16px}
 .card{width:min(420px,100%);background:var(--side);border:1px solid var(--line);border-radius:18px;padding:28px}
 .card h1{margin:0 0 4px;font-size:28px;line-height:1.1}
@@ -24,11 +25,10 @@ input{background:#101115;border:1px solid var(--line);border-radius:10px;padding
 .card label{display:block;font-size:13px;color:var(--dim);margin:14px 0 6px}
 .card .row{display:flex;gap:8px}
 .primary{background:var(--acc);color:#fff;font-weight:500;width:100%;margin-top:22px}
-.check{display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--dim);font-size:14px}
-.check input{width:auto}
+.check{display:flex;gap:8px;align-items:center;color:var(--dim);font-size:14px}
+.card .check{display:flex;margin-top:14px}
 #err{color:var(--bad);font-size:14px;margin-top:12px;min-height:1em}
-/* app */
-#app{height:100%;display:grid;grid-template-columns:260px 1fr;grid-template-rows:1fr auto}
+#app{height:100%;display:grid;grid-template-columns:270px 1fr;grid-template-rows:1fr auto}
 aside{grid-row:1/3;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column}
 .room{padding:16px;border-bottom:1px solid var(--line)}
 .room b{display:block;font-size:17px}
@@ -39,12 +39,18 @@ aside{grid-row:1/3;background:var(--side);border-right:1px solid var(--line);dis
 #members li{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px}
 .av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none;box-shadow:0 0 0 2px transparent;transition:box-shadow .12s}
 .av.talk{box-shadow:0 0 0 2px var(--side),0 0 0 4px var(--ok)}
-.nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tag{font-size:11px;padding:2px 6px;border-radius:6px;background:var(--bad);color:#fff}
-.tag.live{background:var(--bad)}
+.av.off{opacity:.45}
+.who{flex:1;display:flex;flex-direction:column}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{font-size:12px;line-height:1.3;color:var(--dim)}
+.sub.ok{color:#7fd9a6}.sub.warn{color:var(--warn)}.sub.bad{color:#ff8a98}
+.tag{font-size:11px;padding:2px 6px;border-radius:6px;background:var(--bad);color:#fff;flex:none}
 .tag.off{background:#3a3d46;color:var(--dim)}
 #net{padding:10px 16px;font-size:12px;color:var(--dim);border-top:1px solid var(--line)}
+#net .ok{color:#7fd9a6}
 main{overflow:auto;padding:16px}
+#banner{margin:0 0 14px;padding:14px 16px;border-radius:12px;background:#2a2116;border:1px solid #5a4317;color:#f3dcae;font-size:14px;max-width:760px}
+#banner b{display:block;color:#ffe3a3;margin-bottom:2px}
 #stage{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
 #stage.focus{grid-template-columns:1fr}
 #stage.focus .tile:not(.big){display:none}
@@ -52,17 +58,20 @@ main{overflow:auto;padding:16px}
 .tile video{width:100%;height:100%;object-fit:contain;display:block}
 .tile .lbl{position:absolute;left:10px;bottom:10px;background:#000a;padding:4px 10px;border-radius:8px;font-size:13px}
 .tile .st{position:absolute;right:10px;top:10px;background:#000a;padding:3px 8px;border-radius:8px;font-size:12px;color:#cfd3dc;font-variant-numeric:tabular-nums}
-.tile .tb{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
-.tile .tb button{min-height:34px;padding:4px 10px;font-size:13px;background:#000a}
+.tile .tb{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:70%}
+.tile .tb button,.tile .tb label{min-height:34px;padding:4px 10px;font-size:13px;background:#000a;border-radius:8px}
+.tile .tb label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.tile .tb input{width:84px;accent-color:var(--acc)}
 #empty{display:grid;place-items:center;text-align:center;color:var(--dim);min-height:60vh;padding:20px}
 #empty b{display:block;color:var(--ink);font-size:20px;margin-bottom:6px}
-footer{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:12px;background:var(--side);border-top:1px solid var(--line)}
+footer{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;padding:12px;background:var(--side);border-top:1px solid var(--line)}
 footer button.on{background:var(--bad);color:#fff}
 footer button.share.on{background:var(--ok);color:#06210f}
 #leave{background:#3b1d22;color:#ff9aa6}
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000d;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+#unlock{position:fixed;right:16px;bottom:96px;background:var(--acc);color:#fff;z-index:5;box-shadow:0 6px 20px #0008}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000e;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:min(560px,92vw);text-align:center}
 #toast.show{opacity:1}
-@media(max-width:700px){#app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}aside{grid-row:auto;border-right:0;border-bottom:1px solid var(--line);max-height:34vh}#net{display:none}}
+@media(max-width:700px){#app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}aside{grid-row:auto;border-right:0;border-bottom:1px solid var(--line);max-height:34vh}#net{display:none}select{max-width:100%}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -71,11 +80,11 @@ footer button.share.on{background:var(--ok);color:#06210f}
 <section id="join">
   <form class="card" id="joinForm">
     <h1>Canal de voz</h1>
-    <p>Entre numa sala, fale por voz e transmita sua tela em 720p a 30fps.</p>
+    <p>Entre numa sala, fale por voz e transmita sua tela.</p>
     <label for="name">Seu nome</label>
-    <input id="name" maxlength="24" autocomplete="nickname" required>
+    <input id="name" class="field" maxlength="24" autocomplete="nickname" required>
     <label for="roomIn">Código da sala</label>
-    <div class="row"><input id="roomIn" maxlength="20" required><button type="button" id="newRoom">Nova</button></div>
+    <div class="row"><input id="roomIn" class="field" maxlength="20" required><button type="button" id="newRoom">Nova</button></div>
     <label class="check"><input type="checkbox" id="noMic"> Entrar sem microfone</label>
     <button class="primary" id="go">Entrar na sala</button>
     <div id="err"></div>
@@ -84,23 +93,33 @@ footer button.share.on{background:var(--ok);color:#06210f}
 
 <section id="app" class="hide">
   <aside>
-    <div class="room"><b id="roomName"></b><small>Passe este código para quem vai entrar</small><button id="copy">Copiar código</button></div>
+    <div class="room"><b id="roomName"></b><small id="roomHint">Passe este código para quem vai entrar</small><button id="copy">Copiar código</button></div>
     <div class="chan">CANAL DE VOZ</div>
     <ul id="members"></ul>
     <div id="net">Conectando…</div>
   </aside>
   <main>
+    <div id="banner" class="hide"></div>
     <div id="stage"></div>
     <div id="empty"><div><b>Ninguém está transmitindo</b>Clique em "Transmitir tela" para mostrar sua tela ou uma janela.</div></div>
   </main>
   <footer>
     <button id="mic">Microfone ligado</button>
     <button id="deaf">Áudio ligado</button>
-    <label class="check" style="margin:0"><input type="checkbox" id="shareAudio" checked> Levar som do PC</label>
+    <label class="check"><input type="checkbox" id="shareAudio" checked> Levar som do PC</label>
+    <select id="quality" title="Qualidade da transmissão">
+      <option value="480p30">480p · 30fps (internet fraca)</option>
+      <option value="720p30">720p · 30fps</option>
+      <option value="720p60">720p · 60fps</option>
+      <option value="1080p30">1080p · 30fps</option>
+      <option value="1080p60">1080p · 60fps</option>
+      <option value="texto">Texto nítido · 1080p 15fps</option>
+    </select>
     <button id="share" class="share">Transmitir tela</button>
     <button id="leave">Sair</button>
   </footer>
 </section>
+<button id="unlock" class="hide">Ativar áudio</button>
 <div id="toast"></div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -110,37 +129,102 @@ const PREFIX = 'lhcanal-v1-';
 const $ = s => document.querySelector(s);
 const rand = n => Math.random().toString(36).slice(2, 2 + n);
 const colors = ['#6c7cff','#ff7a59','#2fd17a','#e05ad6','#f5b83d','#3ec7e0','#ff5e7e','#9b7bff'];
-const colorOf = id => colors[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % colors.length];
+const colorOf = id => colors[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % colors.length];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isWeb = location.protocol.startsWith('http');
+const forceRelay = new URLSearchParams(location.search).has('relay');
 
-const VIDEO = { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30, max: 30 } };
-const MAX_BITRATE = 3500000;
+// ---------- qualidade da transmissão ----------
+const QUALITY = {
+  '480p30':  { w: 854,  h: 480,  fps: 30, kbps: 1200, hint: 'motion', label: '480p · 30fps' },
+  '720p30':  { w: 1280, h: 720,  fps: 30, kbps: 3500, hint: 'motion', label: '720p · 30fps' },
+  '720p60':  { w: 1280, h: 720,  fps: 60, kbps: 5000, hint: 'motion', label: '720p · 60fps' },
+  '1080p30': { w: 1920, h: 1080, fps: 30, kbps: 6000, hint: 'motion', label: '1080p · 30fps' },
+  '1080p60': { w: 1920, h: 1080, fps: 60, kbps: 9000, hint: 'motion', label: '1080p · 60fps' },
+  'texto':   { w: 1920, h: 1080, fps: 15, kbps: 3000, hint: 'detail', label: 'Texto nítido · 1080p 15fps' }
+};
+let qualityKey = '720p30';
+try { const s = localStorage.getItem('canal-q'); if (QUALITY[s]) qualityKey = s; } catch (e) {}
+const Q = () => QUALITY[qualityKey];
+const vidC = q => ({ width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h }, frameRate: { ideal: q.fps, max: q.fps } });
+const mbps = q => (q.kbps / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
-let room = '', myName = '', peer = null, myId = null;
-let lobby = null, roster = new Map(), lobbyConn = null, lobbyTimer = null;
-let micStream = null, screenStream = null, muted = false, deaf = false, sharing = false;
-const peers = new Map();
+// ---------- servidores de conexão (STUN/TURN) ----------
+const TURN_URLS = ['turn:relay1.expressturn.com:3478?transport=udp', 'turn:relay1.expressturn.com:3478?transport=tcp', 'turns:relay1.expressturn.com:443?transport=tcp'];
+const iceServers = [
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
+  { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' }
+];
+let hasTurn = false;
+const peerOpts = () => ({ debug: 1, config: { iceServers, iceTransportPolicy: forceRelay ? 'relay' : 'all' } });
+async function loadTurn() {
+  if (!isWeb) return;
+  try {
+    const r = await fetch('turn.json', { cache: 'no-store' });
+    if (!r.ok) return;
+    const t = await r.json();
+    for (const s of [].concat(t)) {
+      if (s && s.username && s.credential) {
+        iceServers.push({ urls: s.urls || TURN_URLS, username: String(s.username), credential: String(s.credential) });
+        hasTurn = true;
+      }
+    }
+  } catch (e) {}
+}
+
+// ---------- estado ----------
+let room = '', myName = '', peer = null, myId = null, serverDown = false;
+let lobby = null, lobbyRoster = new Map();
+let lobbyConn = null, lobbyTimer = null, lobbyOk = false, lobbyFails = 0, joinedOnce = false, joinedAt = 0, retrying = false;
+let roster = [];
+const seen = new Map(), dialInfo = new Map(), peers = new Map(), meters = new Map();
+let micStream = null, screenStream = null, muted = false, deaf = false, sharing = false, picking = false;
 const actx = new (window.AudioContext || window.webkitAudioContext)();
-const meters = new Map();
 
-function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2600); }
-function net(t) { $('#net').textContent = t; }
+function toast(t, ms) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms || 2800); }
 
-/* ---------- entrada ---------- */
+// ---------- sons de entrada e saída ----------
+function chime(kind) {
+  if (deaf || actx.state !== 'running') return;
+  const seq = { join: [587.33, 880], leave: [880, 587.33], live: [659.25, 987.77] }[kind];
+  const t0 = actx.currentTime + 0.02;
+  seq.forEach((f, i) => {
+    const o = actx.createOscillator(), g = actx.createGain(), st = t0 + i * 0.11;
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, st);
+    g.gain.exponentialRampToValueAtTime(0.16, st + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, st + 0.28);
+    o.connect(g); g.connect(actx.destination);
+    o.start(st); o.stop(st + 0.32);
+  });
+}
+
+// ---------- áudio bloqueado pelo navegador ----------
+function playSafe(el) { const r = el.play(); if (r && r.catch) r.catch(() => $('#unlock').classList.remove('hide')); }
+$('#unlock').onclick = () => {
+  actx.resume().catch(() => {});
+  peers.forEach(p => { p.audio.muted = deaf; p.audio.play().catch(() => {}); });
+  document.querySelectorAll('.tile:not(#tile-me) video').forEach(v => { v.muted = deaf; v.play().catch(() => {}); });
+  $('#unlock').classList.add('hide');
+};
+
+// ---------- entrada ----------
 const hashRoom = location.hash.slice(1).toLowerCase().replace(/[^a-z0-9]/g, '');
 $('#roomIn').value = hashRoom || rand(6);
 try { $('#name').value = localStorage.getItem('canal-nome') || ''; } catch (e) {}
+if (hashRoom) setTimeout(() => $('#name').focus(), 50);
 $('#newRoom').onclick = () => { $('#roomIn').value = rand(6); };
+$('#quality').value = qualityKey;
 
 $('#joinForm').addEventListener('submit', async ev => {
   ev.preventDefault();
-  if (typeof Peer === 'undefined') { $('#err').textContent = 'Não consegui carregar a biblioteca de conexão. Verifique a internet.'; return; }
+  if (typeof Peer === 'undefined') { $('#err').textContent = 'Não consegui carregar a biblioteca de conexão. Verifique a internet e recarregue.'; return; }
   myName = $('#name').value.trim().slice(0, 24);
   room = $('#roomIn').value.toLowerCase().replace(/[^a-z0-9]/g, '');
   if (!myName || !room) { $('#err').textContent = 'Preencha nome e código.'; return; }
   try { localStorage.setItem('canal-nome', myName); } catch (e) {}
   $('#go').disabled = true; $('#err').textContent = '';
-  await actx.resume();
+  actx.resume().catch(() => {});
   micStream = null;
   if (!$('#noMic').checked) {
     try {
@@ -149,20 +233,23 @@ $('#joinForm').addEventListener('submit', async ev => {
   }
   if (!micStream) { micStream = actx.createMediaStreamDestination().stream; muted = true; }
   watchLevel('me', micStream);
+  await loadTurn();
   start();
 });
 
-/* ---------- conexão principal ---------- */
+// ---------- conexão principal ----------
 function start() {
-  peer = new Peer(PREFIX + room + '-' + rand(10), { debug: 1 });
+  peer = new Peer(PREFIX + room + '-' + rand(10), peerOpts());
   peer.on('open', async id => {
+    serverDown = false;
+    if (myId) { render(); return; }
     myId = id;
     $('#join').classList.add('hide'); $('#app').classList.remove('hide');
     $('#roomName').textContent = 'Sala ' + room;
-    if (location.protocol.startsWith('http')) {
-      history.replaceState(null, '', '#' + room);
+    if (isWeb) {
+      history.replaceState(null, '', location.pathname + location.search + '#' + room);
       $('#copy').textContent = 'Copiar link da sala';
-      $('.room small').textContent = 'Quem abrir o link já cai nesta sala';
+      $('#roomHint').textContent = 'Quem abrir o link já cai nesta sala';
     }
     updateButtons(); render();
     await tryHost();
@@ -170,94 +257,201 @@ function start() {
   });
   peer.on('connection', c => setupData(c, false));
   peer.on('call', onCall);
-  peer.on('disconnected', () => { net('Reconectando ao servidor…'); try { peer.reconnect(); } catch (e) {} });
-  peer.on('error', e => {
-    if (e.type === 'peer-unavailable' && String(e.message).includes('-host')) { retryLobby(); return; }
-    if (e.type === 'peer-unavailable') return;
-    console.warn(e);
-    if (!myId) { $('#go').disabled = false; $('#err').textContent = 'Falha ao conectar (' + e.type + '). Tente de novo.'; }
-  });
+  peer.on('disconnected', () => { serverDown = true; render(); setTimeout(() => { try { if (!peer.destroyed && peer.disconnected) peer.reconnect(); } catch (e) {} }, 1000); });
+  peer.on('error', onPeerError);
+}
+function onPeerError(e) {
+  const msg = String((e && e.message) || '');
+  if (e.type === 'peer-unavailable') {
+    if (msg.includes('-host')) { retryLobby(false); return; }
+    const m = msg.match(/lhcanal-v1-[a-z0-9-]+/);
+    if (m) { dialFailed(m[0]); dropEntry(m[0]); render(); }
+    return;
+  }
+  if (!myId) {
+    try { peer.destroy(); } catch (x) {}
+    $('#go').disabled = false;
+    $('#err').textContent = 'Não consegui falar com o servidor (' + e.type + '). Tente de novo.';
+    return;
+  }
+  if (['network', 'server-error', 'socket-error', 'socket-closed', 'disconnected'].includes(e.type)) { serverDown = true; render(); }
 }
 
-/* ---------- lobby: quem está na sala ---------- */
+// ---------- sala: quem cria a sala organiza a lista de quem está nela ----------
 const hostId = () => PREFIX + room + '-host';
 function tryHost() {
   return new Promise(res => {
     if (lobby) return res(true);
-    const l = new Peer(hostId(), { debug: 0 });
+    const l = new Peer(hostId(), Object.assign(peerOpts(), { debug: 0 }));
     let done = false;
+    const finish = ok => { if (done) return; done = true; if (!ok) { try { l.destroy(); } catch (e) {} } res(ok); };
     l.on('open', () => {
-      done = true; lobby = l; roster = new Map();
-      l.on('connection', c => {
-        c.on('data', m => { if (m && m.t === 'hello') { roster.set(c.peer, { name: m.name, c }); sendRoster(); } });
-        c.on('close', () => { roster.delete(c.peer); sendRoster(); });
-      });
-      res(true);
+      if (lobby === l) return;
+      if (done) { try { l.destroy(); } catch (e) {} return; }
+      lobby = l; lobbyRoster = new Map();
+      l.on('connection', hostConn);
+      finish(true);
     });
-    l.on('error', () => { if (!done) { done = true; l.destroy(); res(false); } });
-    setTimeout(() => { if (!done) { done = true; l.destroy(); res(false); } }, 6000);
+    l.on('disconnected', () => { if (lobby === l) setTimeout(() => { try { if (!l.destroyed && l.disconnected) l.reconnect(); } catch (e) {} }, 1000); });
+    l.on('error', e => {
+      if (!done) return finish(false);
+      if (lobby === l && e.type === 'unavailable-id') dropLobby();
+    });
+    setTimeout(() => finish(false), 8000);
   });
 }
-function sendRoster() {
-  const list = [...roster].map(([id, v]) => ({ id, name: v.name }));
-  for (const [, v] of roster) if (v.c.open) v.c.send({ t: 'roster', list });
+function hostConn(c) {
+  const name = String((c.metadata && c.metadata.name) || '…').slice(0, 24);
+  const prev = lobbyRoster.get(c.peer);
+  lobbyRoster.set(c.peer, { name, c, ok: false, lastTry: Date.now() });
+  if (prev && prev.c && prev.c !== c) { try { prev.c.close(); } catch (e) {} }
+  sendRoster();
+  let opened = false;
+  const lost = () => {
+    const e = lobbyRoster.get(c.peer);
+    if (!e || e.c !== c) return;
+    if (e.ok) lobbyRoster.delete(c.peer); else e.c = null;
+    sendRoster();
+  };
+  c.on('open', () => { opened = true; });
+  c.on('data', m => {
+    if (!m || m.t !== 'hello') return;
+    const e = lobbyRoster.get(c.peer);
+    if (e && e.c === c) { e.name = String(m.name || e.name).slice(0, 24); e.ok = true; sendRoster(); }
+  });
+  c.on('close', lost);
+  c.on('error', lost);
+  setTimeout(() => { if (!opened) { try { c.close(); } catch (e) {} lost(); } }, 16000);
 }
+function sendRoster() {
+  const now = Date.now();
+  for (const [id, e] of lobbyRoster) if (!e.ok && !e.c && now - e.lastTry > 30000) lobbyRoster.delete(id);
+  const list = [...lobbyRoster].map(([id, e]) => ({ id, name: e.name, pending: !e.ok }));
+  for (const [, e] of lobbyRoster) if (e.ok && e.c && e.c.open) { try { e.c.send({ t: 'roster', list }); } catch (x) {} }
+}
+function dropLobby() {
+  const l = lobby; lobby = null;
+  for (const [, e] of lobbyRoster) { try { e.c && e.c.close(); } catch (x) {} }
+  lobbyRoster = new Map();
+  try { l && l.destroy(); } catch (x) {}
+}
+
+// ---------- minha ligação com a sala ----------
 function connectLobby() {
   clearTimeout(lobbyTimer);
-  const c = peer.connect(hostId(), { reliable: true });
+  if (!peer || peer.destroyed) return;
+  const c = peer.connect(hostId(), { reliable: true, metadata: { name: myName } });
   lobbyConn = c;
-  lobbyTimer = setTimeout(() => { if (!c.open) retryLobby(); }, 7000);
-  c.on('open', () => { clearTimeout(lobbyTimer); c.send({ t: 'hello', name: myName }); net('Conectado'); });
-  c.on('data', m => { if (m && m.t === 'roster') handleRoster(m.list); });
-  c.on('close', () => { if (lobbyConn === c) retryLobby(); });
+  let opened = false;
+  c.on('open', () => {
+    opened = true; clearTimeout(lobbyTimer);
+    lobbyOk = true; lobbyFails = 0;
+    c.send({ t: 'hello', name: myName });
+    if (!joinedOnce) { joinedOnce = true; joinedAt = Date.now(); chime('join'); }
+    render();
+  });
+  c.on('data', m => { if (m && m.t === 'roster' && Array.isArray(m.list)) handleRoster(m.list); });
+  c.on('close', () => { if (lobbyConn === c) retryLobby(!opened); });
+  c.on('error', () => { if (lobbyConn === c && !opened) retryLobby(true); });
+  lobbyTimer = setTimeout(() => { if (lobbyConn === c && !opened) retryLobby(true); }, 15000);
 }
-let retrying = false;
-function retryLobby() {
+function retryLobby(failed) {
   if (retrying || !peer || peer.destroyed) return;
-  retrying = true; net('Reorganizando a sala…');
-  try { lobbyConn && lobbyConn.close(); } catch (e) {}
-  lobbyConn = null;
+  retrying = true;
+  if (failed) lobbyFails++;
+  lobbyOk = false;
+  const c = lobbyConn; lobbyConn = null; clearTimeout(lobbyTimer);
+  try { c && c.close(); } catch (e) {}
+  render();
   setTimeout(async () => { await tryHost(); retrying = false; connectLobby(); }, 300 + Math.random() * 1500);
 }
 function handleRoster(list) {
-  for (const m of list) {
-    if (m.id === myId) continue;
-    if (!peers.has(m.id) && myId > m.id) setupData(peer.connect(m.id, { reliable: true }), true);
+  roster = list.filter(m => m && m.id && m.id !== myId).map(m => ({ id: String(m.id), name: String(m.name || '…').slice(0, 24), pending: !!m.pending }));
+  const now = Date.now(), ids = new Set(roster.map(m => m.id));
+  for (const id of [...seen.keys()]) if (!ids.has(id)) seen.delete(id);
+  for (const m of roster) {
+    const p = peers.get(m.id);
+    if (p && p.name === '…') p.name = m.name;
+    if (p && p.data && p.data.open) seen.delete(m.id);
+    else if (!seen.has(m.id)) seen.set(m.id, now);
   }
+  maintainMesh(); render();
 }
 
-/* ---------- cada participante ---------- */
+// ---------- ligações diretas entre os participantes ----------
 function entry(id) {
-  if (!peers.has(id)) {
+  let p = peers.get(id);
+  if (!p) {
     const audio = new Audio(); audio.autoplay = true; audio.muted = deaf;
-    peers.set(id, { id, name: '…', muted: false, deaf: false, sharing: false, data: null, voice: null, screenOut: null, screenIn: null, audio, last: Date.now() });
+    p = { id, name: '…', muted: false, deaf: false, sharing: false, data: null, voice: null, screenOut: null, screenIn: null, audio, last: Date.now(), everOpen: false, openedAt: 0, route: '', rtt: null };
+    peers.set(id, p);
   }
-  return peers.get(id);
+  return p;
+}
+function maintainMesh() {
+  if (!peer || !myId || peer.disconnected) return;
+  const now = Date.now();
+  for (const m of roster) {
+    if (!(myId > m.id)) continue;
+    const p = peers.get(m.id);
+    if (p && p.data) continue;
+    const d = dialInfo.get(m.id);
+    if (d && now < d.retryAt) continue;
+    dial(m.id, m.name);
+  }
+}
+function dial(id, name) {
+  const p = entry(id);
+  if (name && p.name === '…') p.name = name;
+  const c = peer.connect(id, { reliable: true, metadata: { name: myName } });
+  p.data = c;
+  setupData(c, true);
+}
+function dialFailed(id) {
+  const d = dialInfo.get(id) || { fails: 0, retryAt: 0 };
+  d.fails++; d.retryAt = Date.now() + Math.min(30000, 3000 * d.fails);
+  dialInfo.set(id, d);
 }
 function setupData(c, initiator) {
+  const p = entry(c.peer);
+  const nm = c.metadata && c.metadata.name;
+  if (nm && p.name === '…') p.name = String(nm).slice(0, 24);
+  if (!initiator && !(p.data && p.data.open)) p.data = c;
+  let opened = false, finished = false;
+  const fail = () => {
+    if (opened || finished) return;
+    finished = true;
+    if (p.data === c) { if (initiator) dialFailed(c.peer); dropEntry(c.peer); render(); }
+  };
   c.on('open', () => {
-    const p = entry(c.peer);
-    if (p.data && p.data !== c) { try { p.data.close(); } catch (e) {} }
-    p.data = c; p.last = Date.now();
+    opened = true;
+    const old = p.data;
+    p.data = c;
+    if (old && old !== c && old.open) { try { old.close(); } catch (e) {} }
+    p.last = Date.now(); dialInfo.delete(c.peer); seen.delete(c.peer);
     sendState(p);
-    if (initiator && !p.voice) { const call = peer.call(c.peer, micStream, { metadata: { kind: 'voice' } }); bindVoice(p, call); }
+    if (initiator && !p.voice) bindVoice(p, peer.call(c.peer, micStream, { metadata: { kind: 'voice' } }));
     if (sharing) sendScreenTo(p);
-    render();
+    if (!p.everOpen) { p.everOpen = true; p.openedAt = Date.now(); if (Date.now() - joinedAt > 4000) chime('join'); }
+    probe(p); render();
   });
   c.on('data', m => {
-    const p = entry(c.peer); p.last = Date.now();
-    if (!m) return;
-    if (m.t === 'state') {
-      const wasSharing = p.sharing;
-      Object.assign(p, { name: m.name, muted: m.muted, deaf: m.deaf, sharing: m.sharing });
-      if (wasSharing && !m.sharing) dropScreenIn(p);
-      render();
-    }
+    p.last = Date.now();
+    if (!m || m.t !== 'state') return;
+    const was = p.sharing;
+    p.name = String(m.name || p.name).slice(0, 24); p.muted = !!m.muted; p.deaf = !!m.deaf; p.sharing = !!m.sharing;
+    if (was && !p.sharing) dropScreenIn(p);
+    if (!was && p.sharing && Date.now() - p.openedAt > 3000) chime('live');
+    render();
   });
-  c.on('close', () => { const p = peers.get(c.peer); if (p && p.data === c) removePeer(c.peer); });
-  c.on('error', () => {});
+  c.on('close', () => {
+    if (p.data !== c) return;
+    if (opened) removePeer(c.peer, true); else fail();
+  });
+  c.on('error', fail);
+  setTimeout(() => { if (!opened) { try { c.close(); } catch (e) {} fail(); } }, 15000);
 }
-function sendState(p) { if (p.data && p.data.open) p.data.send({ t: 'state', name: myName, muted, deaf, sharing }); }
+function sendState(p) { if (p.data && p.data.open) { try { p.data.send({ t: 'state', name: myName, muted, deaf, sharing }); } catch (e) {} } }
 function broadcastState() { peers.forEach(sendState); render(); }
 
 function onCall(call) {
@@ -269,6 +463,7 @@ function onCall(call) {
     p.screenIn = call;
     call.on('stream', s => showTile(p, s));
     call.on('close', () => { if (p.screenIn === call) dropScreenIn(p); });
+    call.on('error', () => {});
   } else {
     call.answer(micStream);
     bindVoice(p, call);
@@ -277,32 +472,96 @@ function onCall(call) {
 function bindVoice(p, call) {
   if (p.voice && p.voice !== call) { try { p.voice.close(); } catch (e) {} }
   p.voice = call;
-  call.on('stream', s => { p.audio.srcObject = s; p.audio.muted = deaf; p.audio.play().catch(() => {}); watchLevel(p.id, s); });
+  call.on('stream', s => {
+    if (p.audio.srcObject !== s) { p.audio.srcObject = s; watchLevel(p.id, s); }
+    p.audio.muted = deaf; playSafe(p.audio);
+  });
   call.on('close', () => { if (p.voice === call) p.voice = null; });
+  call.on('error', () => {});
 }
-function removePeer(id) {
+function closeCalls(p) {
+  for (const k of ['voice', 'screenOut', 'screenIn']) { try { p[k] && p[k].close(); } catch (e) {} p[k] = null; }
+  p.audio.srcObject = null; removeTile(p.id); meters.delete(p.id);
+}
+function dropEntry(id) {
+  const p = peers.get(id);
+  if (!p || (p.data && p.data.open)) return;
+  closeCalls(p); peers.delete(id);
+}
+function removePeer(id, sound) {
   const p = peers.get(id); if (!p) return;
-  for (const k of ['voice', 'screenOut', 'screenIn']) { try { p[k] && p[k].close(); } catch (e) {} }
-  p.audio.srcObject = null; dropScreenIn(p); meters.delete(id); peers.delete(id); render();
+  peers.delete(id); dialInfo.delete(id);
+  try { p.data && p.data.close(); } catch (e) {}
+  closeCalls(p);
+  if (sound && p.everOpen) chime('leave');
+  render();
+}
+async function probe(p) {
+  const pc = (p.voice && p.voice.peerConnection) || (p.data && p.data.peerConnection);
+  if (!pc || !pc.getStats) return;
+  try {
+    const st = await pc.getStats();
+    let pair = null;
+    st.forEach(s => { if (!pair && s.type === 'transport' && s.selectedCandidatePairId) pair = st.get(s.selectedCandidatePairId); });
+    if (!pair) st.forEach(s => { if (!pair && s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pair = s; });
+    if (!pair) return;
+    const lc = st.get(pair.localCandidateId), rc = st.get(pair.remoteCandidateId);
+    p.route = ((lc && lc.candidateType === 'relay') || (rc && rc.candidateType === 'relay')) ? 'relay' : 'direto';
+    if (pair.currentRoundTripTime != null) p.rtt = Math.round(pair.currentRoundTripTime * 1000);
+  } catch (e) {}
 }
 setInterval(() => {
+  if (!myId) return;
   const now = Date.now();
-  peers.forEach(p => { if (p.data && p.data.open) p.data.send({ t: 'ping' }); if (now - p.last > 15000) removePeer(p.id); });
+  try { if (peer && peer.disconnected && !peer.destroyed) peer.reconnect(); } catch (e) {}
+  try { if (lobby && lobby.disconnected && !lobby.destroyed) lobby.reconnect(); } catch (e) {}
+  peers.forEach(p => {
+    if (!(p.data && p.data.open)) return;
+    try { p.data.send({ t: 'ping' }); } catch (e) {}
+    if (now - p.last > 20000) removePeer(p.id, true); else probe(p);
+  });
+  if (lobby) sendRoster();
+  maintainMesh();
+  render();
 }, 4000);
 
-/* ---------- transmissão de tela ---------- */
+// ---------- transmissão de tela ----------
 async function startShare() {
+  if (picking) return;
+  const q = Q(), wantAudio = $('#shareAudio').checked;
+  let audio = false;
+  if (wantAudio) {
+    audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+    try { if (navigator.mediaDevices.getSupportedConstraints().restrictOwnAudio) audio.restrictOwnAudio = true; } catch (e) {}
+    toast('Para levar o som: escolha "Tela inteira" e ative "Compartilhar áudio do sistema" (ou uma aba com "Compartilhar áudio da guia").', 8000);
+  }
+  picking = true; $('#share').disabled = true;
   try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: VIDEO, audio: $('#shareAudio').checked });
-  } catch (e) { if (e.name !== 'NotAllowedError') toast('Não foi possível capturar a tela.'); return; }
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: vidC(q), audio,
+      systemAudio: wantAudio ? 'include' : 'exclude',
+      windowAudio: wantAudio ? 'system' : 'exclude',
+      selfBrowserSurface: 'exclude', surfaceSwitching: 'include', monitorTypeSurfaces: 'include'
+    });
+  } catch (e) {
+    picking = false; $('#share').disabled = false;
+    if (e.name !== 'NotAllowedError') toast('Não foi possível capturar a tela.');
+    else $('#toast').classList.remove('show');
+    return;
+  }
+  picking = false; $('#share').disabled = false;
   const vt = screenStream.getVideoTracks()[0];
-  try { vt.contentHint = 'motion'; } catch (e) {}
-  try { await vt.applyConstraints(VIDEO); } catch (e) {}
+  try { vt.contentHint = q.hint; } catch (e) {}
+  try { await vt.applyConstraints(vidC(q)); } catch (e) {}
   vt.onended = stopShare;
+  const at = screenStream.getAudioTracks()[0];
+  if (at) { try { at.contentHint = 'music'; } catch (e) {} }
   sharing = true;
-  peers.forEach(sendScreenTo);
+  peers.forEach(p => { if (p.data && p.data.open) sendScreenTo(p); });
   showTile({ id: 'me', name: myName + ' (você)' }, screenStream, true);
   broadcastState(); updateButtons();
+  if (wantAudio && !at) toast('Sua tela está indo SEM SOM. Para levar o som: pare, transmita de novo, escolha "Tela inteira" e ative "Compartilhar áudio do sistema".', 10000);
+  else toast(`Transmitindo em ${q.label}. Cada pessoa assistindo usa uns ${mbps(q)} Mbps do seu upload.`, 5000);
 }
 function sendScreenTo(p) {
   if (!screenStream) return;
@@ -311,18 +570,33 @@ function sendScreenTo(p) {
   p.screenOut = call;
   tune(call);
 }
+function setEnc(s, mod) {
+  const pr = s.getParameters();
+  if (!pr.encodings || !pr.encodings.length) pr.encodings = [{}];
+  mod(pr, true);
+  s.setParameters(pr).catch(() => {
+    const p2 = s.getParameters();
+    if (!p2.encodings || !p2.encodings.length) p2.encodings = [{}];
+    mod(p2, false);
+    s.setParameters(p2).catch(() => {});
+  });
+}
 function tune(call) {
   const apply = () => {
     const pc = call.peerConnection; if (!pc) return;
+    const q = Q();
     pc.getSenders().forEach(s => {
-      if (!s.track || s.track.kind !== 'video') return;
-      const pr = s.getParameters();
-      if (!pr.encodings || !pr.encodings.length) pr.encodings = [{}];
-      pr.encodings[0].maxBitrate = MAX_BITRATE;
-      pr.encodings[0].maxFramerate = 30;
-      pr.encodings[0].scaleResolutionDownBy = 1;
-      pr.degradationPreference = 'maintain-framerate';
-      s.setParameters(pr).catch(() => {});
+      if (!s.track) return;
+      if (s.track.kind === 'video') {
+        setEnc(s, (pr, withPref) => {
+          pr.encodings[0].maxBitrate = q.kbps * 1000;
+          pr.encodings[0].maxFramerate = q.fps;
+          pr.encodings[0].scaleResolutionDownBy = 1;
+          if (withPref) pr.degradationPreference = q.hint === 'detail' ? 'maintain-resolution' : 'maintain-framerate';
+        });
+      } else {
+        setEnc(s, pr => { pr.encodings[0].maxBitrate = 128000; });
+      }
     });
   };
   [800, 2500, 6000].forEach(t => setTimeout(apply, t));
@@ -336,18 +610,34 @@ function stopShare() {
   removeTile('me');
   broadcastState(); updateButtons();
 }
+$('#quality').onchange = async () => {
+  qualityKey = $('#quality').value;
+  try { localStorage.setItem('canal-q', qualityKey); } catch (e) {}
+  const q = Q();
+  toast(`Qualidade: ${q.label}. Cada pessoa assistindo usa uns ${mbps(q)} Mbps do seu upload.`, 4500);
+  if (!screenStream) return;
+  const vt = screenStream.getVideoTracks()[0];
+  try { vt.contentHint = q.hint; } catch (e) {}
+  try { await vt.applyConstraints(vidC(q)); } catch (e) {}
+  peers.forEach(p => { if (p.screenOut) tune(p.screenOut); });
+};
 
-/* ---------- palco ---------- */
+// ---------- palco ----------
 function showTile(p, stream, self) {
+  const old = document.getElementById('tile-' + p.id);
+  if (old && old._stream === stream) return;
   removeTile(p.id);
   const t = document.createElement('div');
-  t.className = 'tile'; t.id = 'tile-' + p.id;
-  t.innerHTML = `<video autoplay playsinline></video><span class="lbl">${esc(p.name)}</span><span class="st">…</span><div class="tb"><button data-a="focus">Ampliar</button><button data-a="full">Tela cheia</button></div>`;
+  t.className = 'tile'; t.id = 'tile-' + p.id; t._stream = stream;
+  t.innerHTML = `<video autoplay playsinline></video><span class="lbl">${esc(p.name)}</span><span class="st">…</span><div class="tb">${self ? '' : '<label title="Volume desta transmissão">Som <input type="range" min="0" max="1" step="0.05" value="1"></label>'}<button data-a="focus">Ampliar</button><button data-a="full">Tela cheia</button></div>`;
   const v = t.querySelector('video');
-  v.muted = !!self || deaf; v.srcObject = stream; v.play().catch(() => {});
+  v.muted = !!self || deaf; v.srcObject = stream;
+  playSafe(v);
+  const vol = t.querySelector('input[type=range]');
+  if (vol) vol.oninput = () => { v.volume = +vol.value; };
   t.querySelector('[data-a=focus]').onclick = () => toggleFocus(t);
-  t.querySelector('[data-a=full]').onclick = () => { (t.requestFullscreen ? t.requestFullscreen() : v.requestFullscreen()).catch(() => {}); };
-  measure(v, t.querySelector('.st'));
+  t.querySelector('[data-a=full]').onclick = () => { const r = t.requestFullscreen ? t.requestFullscreen() : v.requestFullscreen(); if (r && r.catch) r.catch(() => {}); };
+  measure(v, t.querySelector('.st'), stream);
   $('#stage').appendChild(t);
   updateEmpty();
 }
@@ -365,19 +655,24 @@ function removeTile(id) {
 }
 function dropScreenIn(p) { p.screenIn = null; removeTile(p.id); }
 function updateEmpty() { $('#empty').classList.toggle('hide', !!$('#stage').children.length); }
-function measure(v, label) {
+function measure(v, label, stream) {
   let n = 0, t0 = performance.now();
+  const next = () => v.requestVideoFrameCallback ? v.requestVideoFrameCallback(tick) : requestAnimationFrame(tick);
   const tick = () => {
     if (!v.isConnected) return;
     n++;
     const now = performance.now();
-    if (now - t0 >= 1000) { label.textContent = `${v.videoWidth}×${v.videoHeight} · ${Math.round(n * 1000 / (now - t0))} fps`; n = 0; t0 = now; }
-    v.requestVideoFrameCallback ? v.requestVideoFrameCallback(tick) : requestAnimationFrame(tick);
+    if (now - t0 >= 1000) {
+      const sound = stream.getAudioTracks().length ? '' : ' · sem som';
+      label.textContent = `${v.videoWidth}×${v.videoHeight} · ${Math.round(n * 1000 / (now - t0))} fps${sound}`;
+      n = 0; t0 = now;
+    }
+    next();
   };
-  v.requestVideoFrameCallback ? v.requestVideoFrameCallback(tick) : requestAnimationFrame(tick);
+  next();
 }
 
-/* ---------- indicador de fala ---------- */
+// ---------- indicador de fala ----------
 function watchLevel(id, stream) {
   if (!stream.getAudioTracks().length) return;
   try {
@@ -396,11 +691,40 @@ setInterval(() => {
   });
 }, 120);
 
-/* ---------- lista e botões ---------- */
+// ---------- lista, avisos e botões ----------
+function rowHtml(r) {
+  const initial = esc((r.name || '?').trim().charAt(0).toUpperCase() || '?');
+  let sub = '';
+  if (!r.self) {
+    if (r.state === 'ok') sub = `<span class="sub ok">${r.route === 'relay' ? 'via retransmissão' : r.route ? 'conexão direta' : 'conectado'}${r.rtt != null ? ' · ' + r.rtt + ' ms' : ''}</span>`;
+    else if (r.state === 'wait') sub = '<span class="sub warn">conectando…</span>';
+    else sub = '<span class="sub bad">sem conexão</span>';
+  }
+  const tags = (r.sharing ? '<span class="tag">AO VIVO</span>' : '') + (r.deaf ? '<span class="tag off">surdo</span>' : r.muted ? '<span class="tag off">mudo</span>' : '');
+  return `<li><span class="av${r.state === 'ok' ? '' : ' off'}" data-av="${esc(r.id)}" style="background:${colorOf(r.self ? myId : r.id)}">${initial}</span><span class="who"><span class="nm">${esc(r.name)}</span>${sub}</span>${tags}</li>`;
+}
 function render() {
-  const list = [{ id: 'me', name: myName + ' (você)', muted, deaf, sharing }, ...peers.values()];
-  $('#members').innerHTML = list.map(p => `<li><span class="av" data-av="${p.id}" style="background:${colorOf(p.id === 'me' ? (myId || 'me') : p.id)}">${esc((p.name || '?')[0].toUpperCase())}</span><span class="nm">${esc(p.name)}</span>${p.sharing ? '<span class="tag live">AO VIVO</span>' : ''}${p.deaf ? '<span class="tag off">surdo</span>' : p.muted ? '<span class="tag off">mudo</span>' : ''}</li>`).join('');
-  net(peers.size ? `Conectado · ${peers.size + 1} na sala` : 'Conectado · só você na sala');
+  if (!myId) return;
+  const now = Date.now();
+  const rows = [{ id: 'me', name: myName + ' (você)', muted, deaf, sharing, state: 'ok', self: true }];
+  const shown = new Set();
+  for (const p of peers.values()) if (p.data && p.data.open) { rows.push(Object.assign({}, p, { state: 'ok' })); shown.add(p.id); }
+  for (const m of roster) if (!shown.has(m.id)) rows.push({ id: m.id, name: m.name, state: now - (seen.get(m.id) || now) > 20000 ? 'fail' : 'wait' });
+  $('#members').innerHTML = rows.map(rowHtml).join('');
+  const n = shown.size + 1;
+  let t;
+  if (serverDown) t = 'Sem conexão com o servidor. Tentando de novo…';
+  else if (lobbyOk) t = n > 1 ? `Conectado · ${n} na sala` : 'Conectado · só você na sala';
+  else t = lobbyFails ? `Tentando entrar na sala… (tentativa ${lobbyFails + 1})` : 'Conectando à sala…';
+  $('#net').innerHTML = esc(t) + '<br>' + (hasTurn ? '<span class="ok">Retransmissão (TURN): ativa</span>' : 'Retransmissão (TURN): não configurada') + (forceRelay ? ' · forçada' : '');
+  const b = $('#banner');
+  if (lobbyOk || lobbyFails < 2) b.classList.add('hide');
+  else {
+    b.classList.remove('hide');
+    b.innerHTML = `<b>Não estou conseguindo entrar na sala (tentativa ${lobbyFails + 1})</b>` + (hasTurn
+      ? 'A retransmissão está ativa, mas a conexão ainda não saiu. Confira se quem criou a sala continua nela, ou saia e entre de novo.'
+      : 'Isso costuma ser a rede bloqueando a conexão direta entre os computadores. A retransmissão (TURN) ainda não foi configurada neste site, e é ela que resolve esse caso.');
+  }
 }
 function updateButtons() {
   $('#mic').textContent = muted ? 'Microfone desligado' : 'Microfone ligado';
@@ -411,23 +735,24 @@ function updateButtons() {
   $('#share').classList.toggle('on', sharing);
 }
 function setMic() { micStream.getAudioTracks().forEach(t => t.enabled = !muted); }
-$('#mic').onclick = () => { if (deaf) deaf = false; muted = !muted; setMic(); applyDeaf(); broadcastState(); updateButtons(); };
-$('#deaf').onclick = () => { deaf = !deaf; muted = deaf ? true : muted; setMic(); applyDeaf(); broadcastState(); updateButtons(); };
 function applyDeaf() {
   peers.forEach(p => p.audio.muted = deaf);
   document.querySelectorAll('.tile:not(#tile-me) video').forEach(v => v.muted = deaf);
 }
+$('#mic').onclick = () => { if (deaf) deaf = false; muted = !muted; setMic(); applyDeaf(); broadcastState(); updateButtons(); };
+$('#deaf').onclick = () => { deaf = !deaf; if (deaf) muted = true; setMic(); applyDeaf(); broadcastState(); updateButtons(); };
 $('#share').onclick = () => sharing ? stopShare() : startShare();
 $('#copy').onclick = () => {
-  const txt = location.protocol.startsWith('http') ? location.href.split('#')[0] + '#' + room : room;
-  navigator.clipboard.writeText(txt).then(() => toast('Copiado: ' + txt), () => toast('Código: ' + room));
+  const txt = isWeb ? location.origin + location.pathname + '#' + room : room;
+  navigator.clipboard.writeText(txt).then(() => toast('Copiado: ' + txt), () => toast('Código da sala: ' + room));
 };
 $('#leave').onclick = () => {
   stopShare();
-  peers.forEach(p => removePeer(p.id));
+  [...peers.keys()].forEach(id => removePeer(id, false));
+  try { lobbyConn && lobbyConn.close(); } catch (e) {}
   try { lobby && lobby.destroy(); } catch (e) {}
   try { peer && peer.destroy(); } catch (e) {}
-  micStream && micStream.getTracks().forEach(t => t.stop());
+  if (micStream) micStream.getTracks().forEach(t => t.stop());
   location.reload();
 };
 window.addEventListener('beforeunload', () => { try { lobby && lobby.destroy(); peer && peer.destroy(); } catch (e) {} });
