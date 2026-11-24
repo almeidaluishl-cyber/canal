@@ -1,0 +1,5 @@
+{
+  "urls": ["turn:free.expressturn.com:3478?transport=udp", "turn:free.expressturn.com:3478?transport=tcp"],
+  "username": "almeida.luishl@gmail.com",
+  "credential": "G@l012023"
+}
