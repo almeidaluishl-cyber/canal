@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Canal: voz e tela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#16171b;--side:#1d1f24;--panel:#24262d;--line:#30333b;--ink:#e9eaee;--dim:#9a9eab;--acc:#6c7cff;--ok:#2fd17a;--bad:#f0475a}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Rubik,system-ui,sans-serif;overflow:hidden}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:10px;background:var(--panel);padding:10px 14px;min-height:44px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+input{background:#101115;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px;width:100%}
+.hide{display:none!important}
+/* entrada */
+#join{height:100%;display:grid;place-items:center;padding:16px}
+.card{width:min(420px,100%);background:var(--side);border:1px solid var(--line);border-radius:18px;padding:28px}
+.card h1{margin:0 0 4px;font-size:28px;line-height:1.1}
+.card p{margin:0 0 20px;color:var(--dim)}
+.card label{display:block;font-size:13px;color:var(--dim);margin:14px 0 6px}
+.card .row{display:flex;gap:8px}
+.primary{background:var(--acc);color:#fff;font-weight:500;width:100%;margin-top:22px}
+.check{display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--dim);font-size:14px}
+.check input{width:auto}
+#err{color:var(--bad);font-size:14px;margin-top:12px;min-height:1em}
+/* app */
+#app{height:100%;display:grid;grid-template-columns:260px 1fr;grid-template-rows:1fr auto}
+aside{grid-row:1/3;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.room{padding:16px;border-bottom:1px solid var(--line)}
+.room b{display:block;font-size:17px}
+.room small{color:var(--dim)}
+.room button{margin-top:10px;width:100%;font-size:14px}
+.chan{padding:14px 16px 6px;color:var(--dim);font-size:13px}
+#members{list-style:none;margin:0;padding:0 8px;overflow:auto;flex:1}
+#members li{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none;box-shadow:0 0 0 2px transparent;transition:box-shadow .12s}
+.av.talk{box-shadow:0 0 0 2px var(--side),0 0 0 4px var(--ok)}
+.nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:11px;padding:2px 6px;border-radius:6px;background:var(--bad);color:#fff}
+.tag.live{background:var(--bad)}
+.tag.off{background:#3a3d46;color:var(--dim)}
+#net{padding:10px 16px;font-size:12px;color:var(--dim);border-top:1px solid var(--line)}
+main{overflow:auto;padding:16px}
+#stage{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+#stage.focus{grid-template-columns:1fr}
+#stage.focus .tile:not(.big){display:none}
+.tile{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:16/9;border:1px solid var(--line)}
+.tile video{width:100%;height:100%;object-fit:contain;display:block}
+.tile .lbl{position:absolute;left:10px;bottom:10px;background:#000a;padding:4px 10px;border-radius:8px;font-size:13px}
+.tile .st{position:absolute;right:10px;top:10px;background:#000a;padding:3px 8px;border-radius:8px;font-size:12px;color:#cfd3dc;font-variant-numeric:tabular-nums}
+.tile .tb{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
+.tile .tb button{min-height:34px;padding:4px 10px;font-size:13px;background:#000a}
+#empty{display:grid;place-items:center;text-align:center;color:var(--dim);min-height:60vh;padding:20px}
+#empty b{display:block;color:var(--ink);font-size:20px;margin-bottom:6px}
+footer{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:12px;background:var(--side);border-top:1px solid var(--line)}
+footer button.on{background:var(--bad);color:#fff}
+footer button.share.on{background:var(--ok);color:#06210f}
+#leave{background:#3b1d22;color:#ff9aa6}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000d;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+@media(max-width:700px){#app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}aside{grid-row:auto;border-right:0;border-bottom:1px solid var(--line);max-height:34vh}#net{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<section id="join">
+  <form class="card" id="joinForm">
+    <h1>Canal de voz</h1>
+    <p>Entre numa sala, fale por voz e transmita sua tela em 720p a 30fps.</p>
+    <label for="name">Seu nome</label>
+    <input id="name" maxlength="24" autocomplete="nickname" required>
+    <label for="roomIn">Código da sala</label>
+    <div class="row"><input id="roomIn" maxlength="20" required><button type="button" id="newRoom">Nova</button></div>
+    <label class="check"><input type="checkbox" id="noMic"> Entrar sem microfone</label>
+    <button class="primary" id="go">Entrar na sala</button>
+    <div id="err"></div>
+  </form>
+</section>
+
+<section id="app" class="hide">
+  <aside>
+    <div class="room"><b id="roomName"></b><small>Passe este código para quem vai entrar</small><button id="copy">Copiar código</button></div>
+    <div class="chan">CANAL DE VOZ</div>
+    <ul id="members"></ul>
+    <div id="net">Conectando…</div>
+  </aside>
+  <main>
+    <div id="stage"></div>
+    <div id="empty"><div><b>Ninguém está transmitindo</b>Clique em "Transmitir tela" para mostrar sua tela ou uma janela.</div></div>
+  </main>
+  <footer>
+    <button id="mic">Microfone ligado</button>
+    <button id="deaf">Áudio ligado</button>
+    <label class="check" style="margin:0"><input type="checkbox" id="shareAudio" checked> Levar som do PC</label>
+    <button id="share" class="share">Transmitir tela</button>
+    <button id="leave">Sair</button>
+  </footer>
+</section>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+{
+const PREFIX = 'lhcanal-v1-';
+const $ = s => document.querySelector(s);
+const rand = n => Math.random().toString(36).slice(2, 2 + n);
+const colors = ['#6c7cff','#ff7a59','#2fd17a','#e05ad6','#f5b83d','#3ec7e0','#ff5e7e','#9b7bff'];
+const colorOf = id => colors[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % colors.length];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const VIDEO = { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30, max: 30 } };
+const MAX_BITRATE = 3500000;
+
+let room = '', myName = '', peer = null, myId = null;
+let lobby = null, roster = new Map(), lobbyConn = null, lobbyTimer = null;
+let micStream = null, screenStream = null, muted = false, deaf = false, sharing = false;
+const peers = new Map();
+const actx = new (window.AudioContext || window.webkitAudioContext)();
+const meters = new Map();
+
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2600); }
+function net(t) { $('#net').textContent = t; }
+
+/* ---------- entrada ---------- */
+const hashRoom = location.hash.slice(1).toLowerCase().replace(/[^a-z0-9]/g, '');
+$('#roomIn').value = hashRoom || rand(6);
+try { $('#name').value = localStorage.getItem('canal-nome') || ''; } catch (e) {}
+$('#newRoom').onclick = () => { $('#roomIn').value = rand(6); };
+
+$('#joinForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  if (typeof Peer === 'undefined') { $('#err').textContent = 'Não consegui carregar a biblioteca de conexão. Verifique a internet.'; return; }
+  myName = $('#name').value.trim().slice(0, 24);
+  room = $('#roomIn').value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!myName || !room) { $('#err').textContent = 'Preencha nome e código.'; return; }
+  try { localStorage.setItem('canal-nome', myName); } catch (e) {}
+  $('#go').disabled = true; $('#err').textContent = '';
+  await actx.resume();
+  micStream = null;
+  if (!$('#noMic').checked) {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (e) { toast('Microfone bloqueado. Você entrou só para ouvir.'); }
+  }
+  if (!micStream) { micStream = actx.createMediaStreamDestination().stream; muted = true; }
+  watchLevel('me', micStream);
+  start();
+});
+
+/* ---------- conexão principal ---------- */
+function start() {
+  peer = new Peer(PREFIX + room + '-' + rand(10), { debug: 1 });
+  peer.on('open', async id => {
+    myId = id;
+    $('#join').classList.add('hide'); $('#app').classList.remove('hide');
+    $('#roomName').textContent = 'Sala ' + room;
+    if (location.protocol.startsWith('http')) {
+      history.replaceState(null, '', '#' + room);
+      $('#copy').textContent = 'Copiar link da sala';
+      $('.room small').textContent = 'Quem abrir o link já cai nesta sala';
+    }
+    updateButtons(); render();
+    await tryHost();
+    connectLobby();
+  });
+  peer.on('connection', c => setupData(c, false));
+  peer.on('call', onCall);
+  peer.on('disconnected', () => { net('Reconectando ao servidor…'); try { peer.reconnect(); } catch (e) {} });
+  peer.on('error', e => {
+    if (e.type === 'peer-unavailable' && String(e.message).includes('-host')) { retryLobby(); return; }
+    if (e.type === 'peer-unavailable') return;
+    console.warn(e);
+    if (!myId) { $('#go').disabled = false; $('#err').textContent = 'Falha ao conectar (' + e.type + '). Tente de novo.'; }
+  });
+}
+
+/* ---------- lobby: quem está na sala ---------- */
+const hostId = () => PREFIX + room + '-host';
+function tryHost() {
+  return new Promise(res => {
+    if (lobby) return res(true);
+    const l = new Peer(hostId(), { debug: 0 });
+    let done = false;
+    l.on('open', () => {
+      done = true; lobby = l; roster = new Map();
+      l.on('connection', c => {
+        c.on('data', m => { if (m && m.t === 'hello') { roster.set(c.peer, { name: m.name, c }); sendRoster(); } });
+        c.on('close', () => { roster.delete(c.peer); sendRoster(); });
+      });
+      res(true);
+    });
+    l.on('error', () => { if (!done) { done = true; l.destroy(); res(false); } });
+    setTimeout(() => { if (!done) { done = true; l.destroy(); res(false); } }, 6000);
+  });
+}
+function sendRoster() {
+  const list = [...roster].map(([id, v]) => ({ id, name: v.name }));
+  for (const [, v] of roster) if (v.c.open) v.c.send({ t: 'roster', list });
+}
+function connectLobby() {
+  clearTimeout(lobbyTimer);
+  const c = peer.connect(hostId(), { reliable: true });
+  lobbyConn = c;
+  lobbyTimer = setTimeout(() => { if (!c.open) retryLobby(); }, 7000);
+  c.on('open', () => { clearTimeout(lobbyTimer); c.send({ t: 'hello', name: myName }); net('Conectado'); });
+  c.on('data', m => { if (m && m.t === 'roster') handleRoster(m.list); });
+  c.on('close', () => { if (lobbyConn === c) retryLobby(); });
+}
+let retrying = false;
+function retryLobby() {
+  if (retrying || !peer || peer.destroyed) return;
+  retrying = true; net('Reorganizando a sala…');
+  try { lobbyConn && lobbyConn.close(); } catch (e) {}
+  lobbyConn = null;
+  setTimeout(async () => { await tryHost(); retrying = false; connectLobby(); }, 300 + Math.random() * 1500);
+}
+function handleRoster(list) {
+  for (const m of list) {
+    if (m.id === myId) continue;
+    if (!peers.has(m.id) && myId > m.id) setupData(peer.connect(m.id, { reliable: true }), true);
+  }
+}
+
+/* ---------- cada participante ---------- */
+function entry(id) {
+  if (!peers.has(id)) {
+    const audio = new Audio(); audio.autoplay = true; audio.muted = deaf;
+    peers.set(id, { id, name: '…', muted: false, deaf: false, sharing: false, data: null, voice: null, screenOut: null, screenIn: null, audio, last: Date.now() });
+  }
+  return peers.get(id);
+}
+function setupData(c, initiator) {
+  c.on('open', () => {
+    const p = entry(c.peer);
+    if (p.data && p.data !== c) { try { p.data.close(); } catch (e) {} }
+    p.data = c; p.last = Date.now();
+    sendState(p);
+    if (initiator && !p.voice) { const call = peer.call(c.peer, micStream, { metadata: { kind: 'voice' } }); bindVoice(p, call); }
+    if (sharing) sendScreenTo(p);
+    render();
+  });
+  c.on('data', m => {
+    const p = entry(c.peer); p.last = Date.now();
+    if (!m) return;
+    if (m.t === 'state') {
+      const wasSharing = p.sharing;
+      Object.assign(p, { name: m.name, muted: m.muted, deaf: m.deaf, sharing: m.sharing });
+      if (wasSharing && !m.sharing) dropScreenIn(p);
+      render();
+    }
+  });
+  c.on('close', () => { const p = peers.get(c.peer); if (p && p.data === c) removePeer(c.peer); });
+  c.on('error', () => {});
+}
+function sendState(p) { if (p.data && p.data.open) p.data.send({ t: 'state', name: myName, muted, deaf, sharing }); }
+function broadcastState() { peers.forEach(sendState); render(); }
+
+function onCall(call) {
+  const p = entry(call.peer);
+  const kind = call.metadata && call.metadata.kind;
+  if (kind === 'screen') {
+    call.answer();
+    if (p.screenIn && p.screenIn !== call) { try { p.screenIn.close(); } catch (e) {} }
+    p.screenIn = call;
+    call.on('stream', s => showTile(p, s));
+    call.on('close', () => { if (p.screenIn === call) dropScreenIn(p); });
+  } else {
+    call.answer(micStream);
+    bindVoice(p, call);
+  }
+}
+function bindVoice(p, call) {
+  if (p.voice && p.voice !== call) { try { p.voice.close(); } catch (e) {} }
+  p.voice = call;
+  call.on('stream', s => { p.audio.srcObject = s; p.audio.muted = deaf; p.audio.play().catch(() => {}); watchLevel(p.id, s); });
+  call.on('close', () => { if (p.voice === call) p.voice = null; });
+}
+function removePeer(id) {
+  const p = peers.get(id); if (!p) return;
+  for (const k of ['voice', 'screenOut', 'screenIn']) { try { p[k] && p[k].close(); } catch (e) {} }
+  p.audio.srcObject = null; dropScreenIn(p); meters.delete(id); peers.delete(id); render();
+}
+setInterval(() => {
+  const now = Date.now();
+  peers.forEach(p => { if (p.data && p.data.open) p.data.send({ t: 'ping' }); if (now - p.last > 15000) removePeer(p.id); });
+}, 4000);
+
+/* ---------- transmissão de tela ---------- */
+async function startShare() {
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: VIDEO, audio: $('#shareAudio').checked });
+  } catch (e) { if (e.name !== 'NotAllowedError') toast('Não foi possível capturar a tela.'); return; }
+  const vt = screenStream.getVideoTracks()[0];
+  try { vt.contentHint = 'motion'; } catch (e) {}
+  try { await vt.applyConstraints(VIDEO); } catch (e) {}
+  vt.onended = stopShare;
+  sharing = true;
+  peers.forEach(sendScreenTo);
+  showTile({ id: 'me', name: myName + ' (você)' }, screenStream, true);
+  broadcastState(); updateButtons();
+}
+function sendScreenTo(p) {
+  if (!screenStream) return;
+  if (p.screenOut) { try { p.screenOut.close(); } catch (e) {} }
+  const call = peer.call(p.id, screenStream, { metadata: { kind: 'screen' } });
+  p.screenOut = call;
+  tune(call);
+}
+function tune(call) {
+  const apply = () => {
+    const pc = call.peerConnection; if (!pc) return;
+    pc.getSenders().forEach(s => {
+      if (!s.track || s.track.kind !== 'video') return;
+      const pr = s.getParameters();
+      if (!pr.encodings || !pr.encodings.length) pr.encodings = [{}];
+      pr.encodings[0].maxBitrate = MAX_BITRATE;
+      pr.encodings[0].maxFramerate = 30;
+      pr.encodings[0].scaleResolutionDownBy = 1;
+      pr.degradationPreference = 'maintain-framerate';
+      s.setParameters(pr).catch(() => {});
+    });
+  };
+  [800, 2500, 6000].forEach(t => setTimeout(apply, t));
+}
+function stopShare() {
+  if (!sharing) return;
+  sharing = false;
+  if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+  screenStream = null;
+  peers.forEach(p => { try { p.screenOut && p.screenOut.close(); } catch (e) {} p.screenOut = null; });
+  removeTile('me');
+  broadcastState(); updateButtons();
+}
+
+/* ---------- palco ---------- */
+function showTile(p, stream, self) {
+  removeTile(p.id);
+  const t = document.createElement('div');
+  t.className = 'tile'; t.id = 'tile-' + p.id;
+  t.innerHTML = `<video autoplay playsinline></video><span class="lbl">${esc(p.name)}</span><span class="st">…</span><div class="tb"><button data-a="focus">Ampliar</button><button data-a="full">Tela cheia</button></div>`;
+  const v = t.querySelector('video');
+  v.muted = !!self || deaf; v.srcObject = stream; v.play().catch(() => {});
+  t.querySelector('[data-a=focus]').onclick = () => toggleFocus(t);
+  t.querySelector('[data-a=full]').onclick = () => { (t.requestFullscreen ? t.requestFullscreen() : v.requestFullscreen()).catch(() => {}); };
+  measure(v, t.querySelector('.st'));
+  $('#stage').appendChild(t);
+  updateEmpty();
+}
+function toggleFocus(t) {
+  const st = $('#stage'), on = !t.classList.contains('big');
+  st.querySelectorAll('.tile').forEach(x => x.classList.remove('big'));
+  st.classList.toggle('focus', on); if (on) t.classList.add('big');
+  st.querySelectorAll('[data-a=focus]').forEach(b => b.textContent = 'Ampliar');
+  if (on) t.querySelector('[data-a=focus]').textContent = 'Voltar';
+}
+function removeTile(id) {
+  const t = document.getElementById('tile-' + id);
+  if (t) { if (t.classList.contains('big')) $('#stage').classList.remove('focus'); t.remove(); }
+  updateEmpty();
+}
+function dropScreenIn(p) { p.screenIn = null; removeTile(p.id); }
+function updateEmpty() { $('#empty').classList.toggle('hide', !!$('#stage').children.length); }
+function measure(v, label) {
+  let n = 0, t0 = performance.now();
+  const tick = () => {
+    if (!v.isConnected) return;
+    n++;
+    const now = performance.now();
+    if (now - t0 >= 1000) { label.textContent = `${v.videoWidth}×${v.videoHeight} · ${Math.round(n * 1000 / (now - t0))} fps`; n = 0; t0 = now; }
+    v.requestVideoFrameCallback ? v.requestVideoFrameCallback(tick) : requestAnimationFrame(tick);
+  };
+  v.requestVideoFrameCallback ? v.requestVideoFrameCallback(tick) : requestAnimationFrame(tick);
+}
+
+/* ---------- indicador de fala ---------- */
+function watchLevel(id, stream) {
+  if (!stream.getAudioTracks().length) return;
+  try {
+    const src = actx.createMediaStreamSource(stream), an = actx.createAnalyser();
+    an.fftSize = 512; src.connect(an);
+    meters.set(id, { an, buf: new Uint8Array(an.fftSize) });
+  } catch (e) {}
+}
+setInterval(() => {
+  meters.forEach((m, id) => {
+    m.an.getByteTimeDomainData(m.buf);
+    let sum = 0; for (const x of m.buf) sum += (x - 128) ** 2;
+    const talking = Math.sqrt(sum / m.buf.length) > 6 && !(id === 'me' && muted);
+    const el = document.querySelector(`[data-av="${id}"]`);
+    if (el) el.classList.toggle('talk', talking);
+  });
+}, 120);
+
+/* ---------- lista e botões ---------- */
+function render() {
+  const list = [{ id: 'me', name: myName + ' (você)', muted, deaf, sharing }, ...peers.values()];
+  $('#members').innerHTML = list.map(p => `<li><span class="av" data-av="${p.id}" style="background:${colorOf(p.id === 'me' ? (myId || 'me') : p.id)}">${esc((p.name || '?')[0].toUpperCase())}</span><span class="nm">${esc(p.name)}</span>${p.sharing ? '<span class="tag live">AO VIVO</span>' : ''}${p.deaf ? '<span class="tag off">surdo</span>' : p.muted ? '<span class="tag off">mudo</span>' : ''}</li>`).join('');
+  net(peers.size ? `Conectado · ${peers.size + 1} na sala` : 'Conectado · só você na sala');
+}
+function updateButtons() {
+  $('#mic').textContent = muted ? 'Microfone desligado' : 'Microfone ligado';
+  $('#mic').classList.toggle('on', muted);
+  $('#deaf').textContent = deaf ? 'Áudio desligado' : 'Áudio ligado';
+  $('#deaf').classList.toggle('on', deaf);
+  $('#share').textContent = sharing ? 'Parar transmissão' : 'Transmitir tela';
+  $('#share').classList.toggle('on', sharing);
+}
+function setMic() { micStream.getAudioTracks().forEach(t => t.enabled = !muted); }
+$('#mic').onclick = () => { if (deaf) deaf = false; muted = !muted; setMic(); applyDeaf(); broadcastState(); updateButtons(); };
+$('#deaf').onclick = () => { deaf = !deaf; muted = deaf ? true : muted; setMic(); applyDeaf(); broadcastState(); updateButtons(); };
+function applyDeaf() {
+  peers.forEach(p => p.audio.muted = deaf);
+  document.querySelectorAll('.tile:not(#tile-me) video').forEach(v => v.muted = deaf);
+}
+$('#share').onclick = () => sharing ? stopShare() : startShare();
+$('#copy').onclick = () => {
+  const txt = location.protocol.startsWith('http') ? location.href.split('#')[0] + '#' + room : room;
+  navigator.clipboard.writeText(txt).then(() => toast('Copiado: ' + txt), () => toast('Código: ' + room));
+};
+$('#leave').onclick = () => {
+  stopShare();
+  peers.forEach(p => removePeer(p.id));
+  try { lobby && lobby.destroy(); } catch (e) {}
+  try { peer && peer.destroy(); } catch (e) {}
+  micStream && micStream.getTracks().forEach(t => t.stop());
+  location.reload();
+};
+window.addEventListener('beforeunload', () => { try { lobby && lobby.destroy(); peer && peer.destroy(); } catch (e) {} });
+}
+</script>
+</body>
+</html>
