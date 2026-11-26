@@ -75,6 +75,31 @@ footer button.share.on{background:var(--ok);color:#06210f}
 #unlock{position:fixed;right:16px;bottom:96px;background:var(--acc);color:#fff;z-index:5;box-shadow:0 6px 20px #0008}
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000e;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:min(560px,92vw);text-align:center}
 #toast.show{opacity:1}
+#members li{cursor:pointer}
+#members li:hover,#members li:focus-visible{background:#ffffff0d;outline:none}
+#pop{position:fixed;z-index:15;width:250px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px #0009}
+#pop b{display:block;margin-bottom:8px}
+#pop label{display:block;font-size:14px}
+#pop input{width:100%;accent-color:var(--acc)}
+#pop small{display:block;color:var(--warn);font-size:12px;margin-top:4px}
+#pop button{width:100%;margin-top:10px;font-size:14px;background:#30333b}
+#setBg{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:20;padding:16px}
+#setPanel{width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--side);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+.sp-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sp-head b{font-size:20px}
+#setPanel h3{font-size:13px;color:var(--dim);font-weight:500;margin:20px 0 4px}
+#setPanel label{display:block;margin:12px 0 4px;font-size:14px}
+#setPanel .tog{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+#setPanel .tog input{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--acc)}
+#setPanel small,#setPanel p{display:block;color:var(--dim);font-size:13px;margin:4px 0 0}
+#setPanel input[type=range]{width:100%;accent-color:var(--acc)}
+#setPanel select{width:100%;max-width:none}
+.row2{display:flex;justify-content:space-between;gap:8px}
+.dis{opacity:.45;pointer-events:none}
+.meter{position:relative;height:10px;border-radius:5px;background:#ffffff1a;overflow:hidden;margin-top:10px}
+.meter i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok)}
+.meter i.closed{background:#5b5f6b}
+.meter span{position:absolute;top:0;bottom:0;width:2px;background:#fff}
 @media(max-width:700px){#app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}aside{grid-row:auto;border-right:0;border-bottom:1px solid var(--line);max-height:34vh}#net{display:none}select{max-width:100%}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -110,6 +135,7 @@ footer button.share.on{background:var(--ok);color:#06210f}
   <footer>
     <button id="mic">Microfone ligado</button>
     <button id="deaf">Áudio ligado</button>
+    <button id="setBtn">Ajustes de som</button>
     <label class="check"><input type="checkbox" id="shareAudio" checked> Levar som do PC</label>
     <select id="quality" title="Qualidade da transmissão">
       <option value="480p30">480p · 30fps (internet fraca)</option>
@@ -125,6 +151,46 @@ footer button.share.on{background:var(--ok);color:#06210f}
 </section>
 <button id="unlock" class="hide">Ativar áudio</button>
 <div id="toast"></div>
+<div id="pop" class="hide" role="dialog" aria-label="Volume da pessoa">
+  <b id="popName"></b>
+  <label for="popVol"><span class="row2"><span>Volume</span><span id="popV">100%</span></span></label>
+  <input type="range" id="popVol" min="0" max="200" step="5">
+  <small id="popWarn" class="hide">Acima de 100%, use fone de ouvido, senão essa pessoa pode ouvir eco da própria voz.</small>
+  <button id="popMute">Silenciar para mim</button>
+</div>
+<div id="setBg" class="hide">
+  <div id="setPanel" role="dialog" aria-label="Ajustes de som">
+    <div class="sp-head"><b>Ajustes de som</b><button id="setClose">Fechar</button></div>
+    <h3>Seu microfone</h3>
+    <p id="micNote" class="hide">Você entrou sem microfone. Saia e entre de novo com o microfone para usar estes ajustes.</p>
+    <div class="needMic">
+      <label for="micDev">Microfone</label>
+      <select id="micDev"></select>
+      <label for="micVol"><span class="row2"><span>Volume do seu microfone</span><span id="micVolV">100%</span></span></label>
+      <input type="range" id="micVol" min="0" max="200" step="5">
+      <div class="meter"><i id="mtrBar"></i><span id="mtrThr" class="hide"></span></div>
+      <small>Fale para testar. A barra fica cinza quando o filtro está cortando o som.</small>
+    </div>
+    <h3>Filtros do microfone</h3>
+    <div class="needMic">
+      <label class="tog"><input type="checkbox" id="fAi"><span>Redução de ruído com IA<small>Tira teclado, ventilador e barulho de fundo.</small></span></label>
+      <label class="tog"><input type="checkbox" id="fGate"><span>Só transmitir quando eu falar<small>Corta tudo que fica abaixo da sensibilidade escolhida.</small></span></label>
+      <div id="gateRow" class="hide">
+        <label for="gateDb"><span class="row2"><span>Sensibilidade</span><span id="gateV">-50 dB</span></span></label>
+        <input type="range" id="gateDb" min="-80" max="-10" step="1">
+        <small>A linha branca na barra acima mostra o corte. Deixe ela um pouco acima do barulho de fundo.</small>
+      </div>
+      <label class="tog"><input type="checkbox" id="fHp"><span>Cortar graves<small>Tira zumbido, vento e batidas na mesa.</small></span></label>
+      <label class="tog"><input type="checkbox" id="fNs"><span>Supressão de ruído do navegador</span></label>
+      <label class="tog"><input type="checkbox" id="fEc"><span>Cancelamento de eco<small>Deixe ligado se você usa caixa de som.</small></span></label>
+      <label class="tog"><input type="checkbox" id="fAgc"><span>Ganho automático<small>Desligue se sua voz fica subindo e descendo sozinha.</small></span></label>
+    </div>
+    <h3>O que você ouve</h3>
+    <label for="outVol"><span class="row2"><span>Volume geral</span><span id="outVolV">100%</span></span></label>
+    <input type="range" id="outVol" min="0" max="100" step="5">
+    <small>Para mudar o volume de uma pessoa, clique no nome dela na lista.</small>
+  </div>
+</div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
@@ -183,20 +249,132 @@ let lobbyConn = null, lobbyTimer = null, lobbyOk = false, lobbyFails = 0, joined
 let roster = [];
 const seen = new Map(), dialInfo = new Map(), peers = new Map(), meters = new Map();
 let micStream = null, screenStream = null, muted = false, deaf = false, sharing = false, picking = false;
-const actx = new (window.AudioContext || window.webkitAudioContext)();
+const actx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000, latencyHint: 'interactive' });
+
+// ---------- ajustes de som ----------
+const AUD = { micVol: 1, outVol: 1, ns: true, ec: true, agc: true, hp: true, gate: false, gateDb: -50, ai: false, device: '' };
+try { Object.assign(AUD, JSON.parse(localStorage.getItem('canal-audio') || '{}')); } catch (e) {}
+let peerVol = {};
+try { peerVol = JSON.parse(localStorage.getItem('canal-vols') || '{}') || {}; } catch (e) {}
+const saveAud = () => { try { localStorage.setItem('canal-audio', JSON.stringify(AUD)); } catch (e) {} };
+const savePeerVol = () => { try { localStorage.setItem('canal-vols', JSON.stringify(peerVol)); } catch (e) {} };
+const volOf = name => (typeof peerVol[name] === 'number' ? peerVol[name] : 1);
+let rawMic = null, micSrc = null, hpf = null, micGain = null, gate = null, micDest = null, preAn = null, rnNode = null, rnLoading = null, popId = null;
+const NS_BASE = 'https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@0.4.2/dist/';
+const GATE_SRC = [
+  'class G extends AudioWorkletProcessor {',
+  '  static get parameterDescriptors() { return [{ name: "threshold", defaultValue: -50 }, { name: "enabled", defaultValue: 0 }]; }',
+  '  constructor() { super(); this.g = 1; this.hold = 0; }',
+  '  process(ins, outs, p) {',
+  '    const i = ins[0], o = outs[0];',
+  '    if (!i || !i[0]) return true;',
+  '    const x = i[0], n = x.length;',
+  '    let s = 0; for (let k = 0; k < n; k++) s += x[k] * x[k];',
+  '    const db = 10 * Math.log10(s / n + 1e-12);',
+  '    if (p.enabled[0] < 0.5 || db > p.threshold[0]) this.hold = 0.3; else this.hold -= n / sampleRate;',
+  '    const t = this.hold > 0 ? 1 : 0;',
+  '    let g = this.g;',
+  '    for (let k = 0; k < n; k++) { g += (t - g) * (t > g ? 0.01 : 0.0008); for (let c = 0; c < o.length; c++) o[c][k] = (i[c] || x)[k] * g; }',
+  '    this.g = g;',
+  '    return true;',
+  '  }',
+  '}',
+  'registerProcessor("canal-gate", G);'
+].join('\n');
+function micConstraints() {
+  const c = { echoCancellation: AUD.ec, noiseSuppression: AUD.ns, autoGainControl: AUD.agc, channelCount: 1 };
+  if (AUD.device) c.deviceId = { exact: AUD.device };
+  return c;
+}
+async function getMic() {
+  try { return await navigator.mediaDevices.getUserMedia({ audio: micConstraints() }); }
+  catch (e) {
+    if (!AUD.device) throw e;
+    AUD.device = ''; saveAud();
+    return await navigator.mediaDevices.getUserMedia({ audio: micConstraints() });
+  }
+}
+async function buildChain(raw) {
+  hpf = actx.createBiquadFilter(); hpf.type = 'highpass'; hpf.Q.value = 0.7; hpf.channelCount = 1; hpf.channelCountMode = 'explicit';
+  micGain = actx.createGain();
+  preAn = actx.createAnalyser(); preAn.fftSize = 1024;
+  micDest = actx.createMediaStreamDestination(); micDest.channelCount = 1;
+  try {
+    await actx.audioWorklet.addModule(URL.createObjectURL(new Blob([GATE_SRC], { type: 'application/javascript' })));
+    gate = new AudioWorkletNode(actx, 'canal-gate', { outputChannelCount: [1] });
+  } catch (e) { gate = null; }
+  micGain.connect(preAn);
+  if (gate) { micGain.connect(gate); gate.connect(micDest); } else micGain.connect(micDest);
+  rawMic = raw; micSrc = actx.createMediaStreamSource(raw); micSrc.connect(hpf);
+  wire(); applyAud();
+  if (AUD.ai) setAi(true);
+  return micDest.stream;
+}
+function wire() {
+  if (!hpf) return;
+  try { hpf.disconnect(); } catch (e) {}
+  if (rnNode) { try { rnNode.disconnect(); } catch (e) {} }
+  if (AUD.ai && rnNode) { hpf.connect(rnNode); rnNode.connect(micGain); } else hpf.connect(micGain);
+}
+async function setAi(on) {
+  AUD.ai = on; saveAud();
+  if (on && !rnNode && hpf) {
+    try {
+      rnLoading = rnLoading || (async () => {
+        const lib = await import(NS_BASE + 'index.js');
+        const wasm = await lib.loadRnnoise({ url: NS_BASE + 'rnnoise.wasm', simdUrl: NS_BASE + 'rnnoise_simd.wasm' });
+        await actx.audioWorklet.addModule(NS_BASE + 'rnnoise/workletProcessor.js');
+        return new lib.RnnoiseWorkletNode(actx, { wasmBinary: wasm, maxChannels: 1 });
+      })();
+      rnNode = await rnLoading;
+    } catch (e) {
+      rnLoading = null; AUD.ai = false; saveAud();
+      const cb = $('#fAi'); if (cb) cb.checked = false;
+      toast('Não consegui carregar a redução de ruído com IA. Confira a internet e tente de novo.');
+    }
+  }
+  wire();
+}
+async function reopenMic() {
+  if (!micSrc) return;
+  try { micSrc.disconnect(); } catch (e) {}
+  if (rawMic) rawMic.getTracks().forEach(t => t.stop());
+  try {
+    rawMic = await getMic();
+    micSrc = actx.createMediaStreamSource(rawMic); micSrc.connect(hpf);
+  } catch (e) { toast('Não consegui abrir esse microfone.'); }
+}
+function applyAud() {
+  if (hpf) hpf.frequency.value = AUD.hp ? 90 : 10;
+  if (micGain) micGain.gain.value = AUD.micVol;
+  if (gate) { gate.parameters.get('enabled').value = AUD.gate ? 1 : 0; gate.parameters.get('threshold').value = AUD.gateDb; }
+  peers.forEach(applyPeerVol);
+  document.querySelectorAll('.tile:not(#tile-me) video').forEach(v => { v.volume = Math.min(1, (v._vol == null ? 1 : v._vol) * AUD.outVol); });
+}
+function applyPeerVol(p) {
+  const v = p.localMute ? 0 : volOf(p.name) * AUD.outVol;
+  if (v <= 1 || !p.stream) {
+    if (p.boost) { try { p.boost.src.disconnect(); p.boost.g.disconnect(); } catch (e) {} p.boost = null; }
+    p.audio.muted = deaf; p.audio.volume = Math.max(0, Math.min(1, v));
+  } else {
+    if (!p.boost) { const src = actx.createMediaStreamSource(p.stream), g = actx.createGain(); src.connect(g); g.connect(actx.destination); p.boost = { src, g }; }
+    p.boost.g.gain.value = deaf ? 0 : v;
+    p.audio.muted = true;
+  }
+}
 
 function toast(t, ms) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms || 2800); }
 
 // ---------- sons de entrada e saída ----------
 function chime(kind) {
-  if (deaf || actx.state !== 'running') return;
+  if (deaf || actx.state !== 'running' || AUD.outVol <= 0) return;
   const seq = { join: [587.33, 880], leave: [880, 587.33], live: [659.25, 987.77] }[kind];
   const t0 = actx.currentTime + 0.02;
   seq.forEach((f, i) => {
     const o = actx.createOscillator(), g = actx.createGain(), st = t0 + i * 0.11;
     o.type = 'triangle'; o.frequency.value = f;
     g.gain.setValueAtTime(0.0001, st);
-    g.gain.exponentialRampToValueAtTime(0.16, st + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.16 * AUD.outVol, st + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, st + 0.28);
     o.connect(g); g.connect(actx.destination);
     o.start(st); o.stop(st + 0.32);
@@ -207,7 +385,7 @@ function chime(kind) {
 function playSafe(el) { const r = el.play(); if (r && r.catch) r.catch(() => $('#unlock').classList.remove('hide')); }
 $('#unlock').onclick = () => {
   actx.resume().catch(() => {});
-  peers.forEach(p => { p.audio.muted = deaf; p.audio.play().catch(() => {}); });
+  peers.forEach(p => { applyPeerVol(p); p.audio.play().catch(() => {}); });
   document.querySelectorAll('.tile:not(#tile-me) video').forEach(v => { v.muted = deaf; v.play().catch(() => {}); });
   $('#unlock').classList.add('hide');
 };
@@ -230,11 +408,11 @@ $('#joinForm').addEventListener('submit', async ev => {
   $('#go').disabled = true; $('#err').textContent = '';
   actx.resume().catch(() => {});
   micStream = null;
+  let raw = null;
   if (!$('#noMic').checked) {
-    try {
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    } catch (e) { toast('Microfone bloqueado. Você entrou só para ouvir.'); }
+    try { raw = await getMic(); } catch (e) { toast('Microfone bloqueado. Você entrou só para ouvir.'); }
   }
+  if (raw) { try { micStream = await buildChain(raw); } catch (e) { micStream = raw; } }
   if (!micStream) { micStream = actx.createMediaStreamDestination().stream; muted = true; }
   watchLevel('me', micStream);
   await loadTurn();
@@ -387,7 +565,7 @@ function entry(id) {
   let p = peers.get(id);
   if (!p) {
     const audio = new Audio(); audio.autoplay = true; audio.muted = deaf;
-    p = { id, name: '…', muted: false, deaf: false, sharing: false, data: null, voice: null, screenOut: null, screenIn: null, audio, last: Date.now(), everOpen: false, openedAt: 0, route: '', rtt: null };
+    p = { id, name: '…', muted: false, deaf: false, sharing: false, data: null, voice: null, screenOut: null, screenIn: null, audio, last: Date.now(), everOpen: false, openedAt: 0, route: '', rtt: null, stream: null, boost: null, localMute: false };
     peers.set(id, p);
   }
   return p;
@@ -477,15 +655,19 @@ function bindVoice(p, call) {
   if (p.voice && p.voice !== call) { try { p.voice.close(); } catch (e) {} }
   p.voice = call;
   call.on('stream', s => {
-    if (p.audio.srcObject !== s) { p.audio.srcObject = s; watchLevel(p.id, s); }
-    p.audio.muted = deaf; playSafe(p.audio);
+    if (p.audio.srcObject !== s) {
+      if (p.boost) { try { p.boost.src.disconnect(); p.boost.g.disconnect(); } catch (e) {} p.boost = null; }
+      p.audio.srcObject = s; p.stream = s; watchLevel(p.id, s);
+    }
+    applyPeerVol(p); playSafe(p.audio);
   });
   call.on('close', () => { if (p.voice === call) p.voice = null; });
   call.on('error', () => {});
 }
 function closeCalls(p) {
   for (const k of ['voice', 'screenOut', 'screenIn']) { try { p[k] && p[k].close(); } catch (e) {} p[k] = null; }
-  p.audio.srcObject = null; removeTile(p.id); meters.delete(p.id);
+  if (p.boost) { try { p.boost.src.disconnect(); p.boost.g.disconnect(); } catch (e) {} p.boost = null; }
+  p.audio.srcObject = null; p.stream = null; removeTile(p.id); meters.delete(p.id);
 }
 function dropEntry(id) {
   const p = peers.get(id);
@@ -635,10 +817,11 @@ function showTile(p, stream, self) {
   t.className = 'tile'; t.id = 'tile-' + p.id; t._stream = stream;
   t.innerHTML = `<video autoplay playsinline></video><span class="lbl">${esc(p.name)}</span><span class="st">…</span><span class="lv"><span class="lvt">som</span><b><i></i></b></span><div class="tb">${self ? '' : '<label title="Volume desta transmissão">Som <input type="range" min="0" max="1" step="0.05" value="1"></label>'}<button data-a="focus">Ampliar</button><button data-a="full">Tela cheia</button></div>`;
   const v = t.querySelector('video');
-  v.muted = !!self || deaf; v.srcObject = stream;
+  v.muted = !!self || deaf; v.srcObject = stream; v._vol = 1;
+  if (!self) v.volume = Math.min(1, AUD.outVol);
   playSafe(v);
   const vol = t.querySelector('input[type=range]');
-  if (vol) vol.oninput = () => { v.volume = +vol.value; };
+  if (vol) vol.oninput = () => { v._vol = +vol.value; v.volume = Math.min(1, v._vol * AUD.outVol); };
   t.querySelector('[data-a=focus]').onclick = () => toggleFocus(t);
   t.querySelector('[data-a=full]').onclick = () => { const r = t.requestFullscreen ? t.requestFullscreen() : v.requestFullscreen(); if (r && r.catch) r.catch(() => {}); };
   measure(v, t.querySelector('.st'), stream);
@@ -729,12 +912,13 @@ function rowHtml(r) {
   const initial = esc((r.name || '?').trim().charAt(0).toUpperCase() || '?');
   let sub = '';
   if (!r.self) {
-    if (r.state === 'ok') sub = `<span class="sub ok">${r.route === 'relay' ? 'via retransmissão' : r.route ? 'conexão direta' : 'conectado'}${r.rtt != null ? ' · ' + r.rtt + ' ms' : ''}</span>`;
+    const vol = volOf(r.name);
+    if (r.state === 'ok') sub = r.localMute ? '<span class="sub bad">silenciado para você</span>' : `<span class="sub ok">${r.route === 'relay' ? 'via retransmissão' : r.route ? 'conexão direta' : 'conectado'}${r.rtt != null ? ' · ' + r.rtt + ' ms' : ''}${vol !== 1 ? ' · volume ' + Math.round(vol * 100) + '%' : ''}</span>`;
     else if (r.state === 'wait') sub = '<span class="sub warn">conectando…</span>';
     else sub = '<span class="sub bad">sem conexão</span>';
   }
   const tags = (r.sharing ? '<span class="tag">AO VIVO</span>' : '') + (r.deaf ? '<span class="tag off">surdo</span>' : r.muted ? '<span class="tag off">mudo</span>' : '');
-  return `<li><span class="av${r.state === 'ok' ? '' : ' off'}" data-av="${esc(r.id)}" style="background:${colorOf(r.self ? myId : r.id)}">${initial}</span><span class="who"><span class="nm">${esc(r.name)}</span>${sub}</span>${tags}</li>`;
+  return `<li data-id="${esc(r.id)}" tabindex="0" title="${r.self ? 'Ajustes de som' : 'Volume desta pessoa'}"><span class="av${r.state === 'ok' ? '' : ' off'}" data-av="${esc(r.id)}" style="background:${colorOf(r.self ? myId : r.id)}">${initial}</span><span class="who"><span class="nm">${esc(r.name)}</span>${sub}</span>${tags}</li>`;
 }
 function render() {
   if (!myId) return;
@@ -744,6 +928,7 @@ function render() {
   for (const p of peers.values()) if (p.data && p.data.open) { rows.push(Object.assign({}, p, { state: 'ok' })); shown.add(p.id); }
   for (const m of roster) if (!shown.has(m.id)) rows.push({ id: m.id, name: m.name, state: now - (seen.get(m.id) || now) > 20000 ? 'fail' : 'wait' });
   $('#members').innerHTML = rows.map(rowHtml).join('');
+  if (popId && !(peers.get(popId) && peers.get(popId).data && peers.get(popId).data.open)) closePop();
   const n = shown.size + 1;
   let t;
   if (serverDown) t = 'Sem conexão com o servidor. Tentando de novo…';
@@ -769,7 +954,7 @@ function updateButtons() {
 }
 function setMic() { micStream.getAudioTracks().forEach(t => t.enabled = !muted); }
 function applyDeaf() {
-  peers.forEach(p => p.audio.muted = deaf);
+  peers.forEach(applyPeerVol);
   document.querySelectorAll('.tile:not(#tile-me) video').forEach(v => v.muted = deaf);
 }
 $('#mic').onclick = () => { if (deaf) deaf = false; muted = !muted; setMic(); applyDeaf(); broadcastState(); updateButtons(); };
@@ -786,8 +971,102 @@ $('#leave').onclick = () => {
   try { lobby && lobby.destroy(); } catch (e) {}
   try { peer && peer.destroy(); } catch (e) {}
   if (micStream) micStream.getTracks().forEach(t => t.stop());
+  if (rawMic) rawMic.getTracks().forEach(t => t.stop());
   location.reload();
 };
+// ---------- volume de cada pessoa e ajustes de som ----------
+function openPop(id, li) {
+  const p = peers.get(id);
+  if (!p || !(p.data && p.data.open)) return;
+  popId = id;
+  const pop = $('#pop');
+  pop.classList.remove('hide');
+  $('#popName').textContent = p.name;
+  const v = Math.round(volOf(p.name) * 100);
+  $('#popVol').value = v; $('#popV').textContent = v + '%';
+  $('#popWarn').classList.toggle('hide', v <= 100);
+  $('#popMute').textContent = p.localMute ? 'Voltar a ouvir' : 'Silenciar para mim';
+  const r = li.getBoundingClientRect(), narrow = innerWidth <= 700;
+  pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, narrow ? r.left + 8 : r.right + 8)) + 'px';
+  pop.style.top = Math.max(8, Math.min(innerHeight - pop.offsetHeight - 8, narrow ? r.bottom + 4 : r.top)) + 'px';
+}
+function closePop() { popId = null; $('#pop').classList.add('hide'); }
+function memberAct(e) {
+  const li = e.target.closest('li[data-id]'); if (!li) return;
+  if (li.dataset.id === 'me') { openSettings(); return; }
+  if (popId === li.dataset.id) closePop(); else openPop(li.dataset.id, li);
+}
+$('#members').addEventListener('click', memberAct);
+$('#members').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); memberAct(e); } });
+$('#popVol').oninput = () => {
+  const p = peers.get(popId); if (!p) return;
+  const v = +$('#popVol').value;
+  if (v === 100) delete peerVol[p.name]; else peerVol[p.name] = v / 100;
+  savePeerVol();
+  $('#popV').textContent = v + '%';
+  $('#popWarn').classList.toggle('hide', v <= 100);
+  applyPeerVol(p);
+};
+$('#popVol').onchange = () => render();
+$('#popMute').onclick = () => {
+  const p = peers.get(popId); if (!p) return;
+  p.localMute = !p.localMute;
+  $('#popMute').textContent = p.localMute ? 'Voltar a ouvir' : 'Silenciar para mim';
+  applyPeerVol(p); render();
+};
+document.addEventListener('pointerdown', e => { if (popId && !e.target.closest('#pop') && !e.target.closest('#members li')) closePop(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePop(); closeSettings(); } });
+
+function syncSettings() {
+  const has = !!micSrc;
+  $('#micNote').classList.toggle('hide', has);
+  document.querySelectorAll('#setPanel .needMic').forEach(el => { el.classList.toggle('dis', !has); el.querySelectorAll('input,select').forEach(i => { i.disabled = !has; }); });
+  $('#micVol').value = Math.round(AUD.micVol * 100); $('#micVolV').textContent = Math.round(AUD.micVol * 100) + '%';
+  $('#outVol').value = Math.round(AUD.outVol * 100); $('#outVolV').textContent = Math.round(AUD.outVol * 100) + '%';
+  $('#gateDb').value = AUD.gateDb; $('#gateV').textContent = AUD.gateDb + ' dB';
+  $('#fAi').checked = AUD.ai; $('#fGate').checked = AUD.gate; $('#fHp').checked = AUD.hp;
+  $('#fNs').checked = AUD.ns; $('#fEc').checked = AUD.ec; $('#fAgc').checked = AUD.agc;
+  $('#gateRow').classList.toggle('hide', !AUD.gate);
+  $('#mtrThr').classList.toggle('hide', !AUD.gate);
+  $('#mtrThr').style.left = ((AUD.gateDb + 80) / 80 * 100) + '%';
+}
+async function fillDevices() {
+  const sel = $('#micDev');
+  try {
+    const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
+    sel.innerHTML = '<option value="">Padrão do sistema</option>' + list.map((d, i) => '<option value="' + esc(d.deviceId) + '">' + esc(d.label || ('Microfone ' + (i + 1))) + '</option>').join('');
+    sel.value = list.some(d => d.deviceId === AUD.device) ? AUD.device : '';
+  } catch (e) {}
+}
+let meterBuf = null;
+function meterLoop() {
+  if ($('#setBg').classList.contains('hide')) return;
+  if (preAn) {
+    meterBuf = meterBuf || new Float32Array(preAn.fftSize);
+    preAn.getFloatTimeDomainData(meterBuf);
+    let s = 0; for (const x of meterBuf) s += x * x;
+    const db = 10 * Math.log10(s / meterBuf.length + 1e-12);
+    const bar = $('#mtrBar');
+    bar.style.width = Math.max(0, Math.min(100, (db + 80) / 80 * 100)) + '%';
+    bar.classList.toggle('closed', AUD.gate && db < AUD.gateDb);
+  }
+  requestAnimationFrame(meterLoop);
+}
+function openSettings() { closePop(); $('#setBg').classList.remove('hide'); syncSettings(); fillDevices(); meterLoop(); }
+function closeSettings() { $('#setBg').classList.add('hide'); }
+$('#setBtn').onclick = openSettings;
+$('#setClose').onclick = closeSettings;
+$('#setBg').addEventListener('click', e => { if (e.target.id === 'setBg') closeSettings(); });
+$('#micVol').oninput = () => { AUD.micVol = +$('#micVol').value / 100; applyAud(); saveAud(); syncSettings(); };
+$('#outVol').oninput = () => { AUD.outVol = +$('#outVol').value / 100; applyAud(); saveAud(); syncSettings(); };
+$('#gateDb').oninput = () => { AUD.gateDb = +$('#gateDb').value; applyAud(); saveAud(); syncSettings(); };
+$('#fGate').onchange = () => { AUD.gate = $('#fGate').checked; applyAud(); saveAud(); syncSettings(); };
+$('#fHp').onchange = () => { AUD.hp = $('#fHp').checked; applyAud(); saveAud(); };
+$('#fAi').onchange = () => { setAi($('#fAi').checked); };
+for (const [id, key] of [['#fNs', 'ns'], ['#fEc', 'ec'], ['#fAgc', 'agc']]) $(id).onchange = () => { AUD[key] = $(id).checked; saveAud(); reopenMic(); };
+$('#micDev').onchange = () => { AUD.device = $('#micDev').value; saveAud(); reopenMic(); };
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { if (!$('#setBg').classList.contains('hide')) fillDevices(); });
+
 window.addEventListener('beforeunload', () => { try { lobby && lobby.destroy(); peer && peer.destroy(); } catch (e) {} });
 }
 </script>
