@@ -100,6 +100,17 @@ footer button.share.on{background:var(--ok);color:#06210f}
 .meter i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok)}
 .meter i.closed{background:#5b5f6b}
 .meter span{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.tile{width:100%;justify-self:center;max-width:calc(var(--stage-h, 100vh) * 16 / 9)}
+.tile:fullscreen{border:0;border-radius:0;max-width:none}
+@media (hover:hover){.tile .tb{opacity:0;transition:opacity .2s}.tile:hover .tb,.tile:focus-within .tb{opacity:1}}
+#naBg{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:25;padding:16px}
+#naPanel{width:min(440px,100%);background:var(--side);border:1px solid var(--line);border-radius:16px;padding:22px}
+#naPanel b{display:block;font-size:20px;margin-bottom:8px}
+#naPanel p{margin:8px 0;color:var(--dim);font-size:14px}
+#naPanel strong{color:var(--ink);font-weight:500}
+.na-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.na-btns button{flex:1 1 160px}
+#naRetry{background:var(--acc);color:#fff;font-weight:500}
 @media(max-width:700px){#app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}aside{grid-row:auto;border-right:0;border-bottom:1px solid var(--line);max-height:34vh}#net{display:none}select{max-width:100%}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -150,6 +161,15 @@ footer button.share.on{background:var(--ok);color:#06210f}
   </footer>
 </section>
 <button id="unlock" class="hide">Ativar áudio</button>
+<div id="naBg" class="hide">
+  <div id="naPanel" role="dialog" aria-label="Transmissão sem som">
+    <b>Sua tela veio sem som</b>
+    <p>Para levar o som, escolha de novo e, na janela do navegador, faça assim.</p>
+    <p><strong>Jogo ou programa:</strong> deixe em "Tela inteira" e ligue "Compartilhar áudio do sistema".</p>
+    <p><strong>Som de uma aba</strong> (YouTube, Twitch): escolha a aba e ligue "Compartilhar áudio da guia".</p>
+    <div class="na-btns"><button id="naRetry">Escolher de novo</button><button id="naGo">Transmitir sem som</button></div>
+  </div>
+</div>
 <div id="toast"></div>
 <div id="pop" class="hide" role="dialog" aria-label="Volume da pessoa">
   <b id="popName"></b>
@@ -712,19 +732,21 @@ setInterval(() => {
 }, 4000);
 
 // ---------- transmissão de tela ----------
+let pendingShare = null;
 async function startShare() {
-  if (picking) return;
+  if (picking || sharing || pendingShare) return;
   const q = Q(), wantAudio = $('#shareAudio').checked;
   let audio = false;
   if (wantAudio) {
     audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
     try { if (navigator.mediaDevices.getSupportedConstraints().restrictOwnAudio) audio.restrictOwnAudio = true; } catch (e) {}
-    toast('Som de jogo ou programa: escolha "Tela inteira" e ative "Compartilhar áudio do sistema". Som de uma aba do navegador (YouTube, Twitch): escolha a própria aba e ative "Compartilhar áudio da guia".', 10000);
+    toast('Na janela que abrir, deixe em "Tela inteira" e ligue "Compartilhar áudio do sistema". Para som de uma aba (YouTube, Twitch), escolha a aba e ligue "Compartilhar áudio da guia".', 10000);
   }
   picking = true; $('#share').disabled = true;
+  let stream;
   try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: vidC(q), audio,
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: Object.assign(vidC(q), wantAudio ? { displaySurface: 'monitor' } : {}), audio,
       systemAudio: wantAudio ? 'include' : 'exclude',
       windowAudio: wantAudio ? 'system' : 'exclude',
       selfBrowserSurface: 'exclude', surfaceSwitching: 'include', monitorTypeSurfaces: 'include'
@@ -736,6 +758,12 @@ async function startShare() {
     return;
   }
   picking = false; $('#share').disabled = false;
+  if (wantAudio && !stream.getAudioTracks().length) { askNoAudio(stream); return; }
+  goLive(stream);
+}
+async function goLive(stream) {
+  const q = Q();
+  screenStream = stream;
   const vt = screenStream.getVideoTracks()[0];
   try { vt.contentHint = q.hint; } catch (e) {}
   try { await vt.applyConstraints(vidC(q)); } catch (e) {}
@@ -746,9 +774,32 @@ async function startShare() {
   peers.forEach(p => { if (p.data && p.data.open) sendScreenTo(p); });
   showTile({ id: 'me', name: myName + ' (você)' }, screenStream, true);
   broadcastState(); updateButtons();
-  if (wantAudio && !at) toast('Sua tela está indo SEM SOM. Para levar o som: pare, transmita de novo, escolha "Tela inteira" e ative "Compartilhar áudio do sistema".', 10000);
-  else toast(`Transmitindo em ${q.label}. Cada pessoa assistindo usa uns ${mbps(q)} Mbps do seu upload.`, 5000);
+  toast(`Transmitindo em ${q.label}${at ? '' : ' sem som'}. Cada pessoa assistindo usa uns ${mbps(q)} Mbps do seu upload.`, 5000);
 }
+function askNoAudio(stream) {
+  pendingShare = stream;
+  $('#toast').classList.remove('show');
+  $('#naBg').classList.remove('hide');
+  stream.getVideoTracks()[0].onended = () => { if (pendingShare === stream) cancelNoAudio(); };
+}
+function cancelNoAudio() {
+  const s = pendingShare; if (!s) return;
+  pendingShare = null; $('#naBg').classList.add('hide');
+  s.getTracks().forEach(t => t.stop());
+}
+$('#naRetry').onclick = () => { cancelNoAudio(); startShare(); };
+$('#naGo').onclick = () => { const s = pendingShare; pendingShare = null; $('#naBg').classList.add('hide'); if (s) goLive(s); };
+function toggleFull(t, v) {
+  if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
+  const r = t.requestFullscreen ? t.requestFullscreen() : v.requestFullscreen();
+  if (r && r.catch) r.catch(() => {});
+}
+document.addEventListener('fullscreenchange', () => {
+  document.querySelectorAll('[data-a=full]').forEach(b => { b.textContent = document.fullscreenElement && document.fullscreenElement.contains(b) ? 'Sair da tela cheia' : 'Tela cheia'; });
+});
+const stageFit = () => { const m = document.querySelector('main'); if (m && m.clientHeight) document.documentElement.style.setProperty('--stage-h', Math.max(180, m.clientHeight - 32) + 'px'); };
+if (window.ResizeObserver) new ResizeObserver(stageFit).observe(document.querySelector('main'));
+window.addEventListener('resize', stageFit);
 function sendScreenTo(p) {
   if (!screenStream) return;
   if (p.screenOut) { try { p.screenOut.close(); } catch (e) {} }
@@ -823,7 +874,8 @@ function showTile(p, stream, self) {
   const vol = t.querySelector('input[type=range]');
   if (vol) vol.oninput = () => { v._vol = +vol.value; v.volume = Math.min(1, v._vol * AUD.outVol); };
   t.querySelector('[data-a=focus]').onclick = () => toggleFocus(t);
-  t.querySelector('[data-a=full]').onclick = () => { const r = t.requestFullscreen ? t.requestFullscreen() : v.requestFullscreen(); if (r && r.catch) r.catch(() => {}); };
+  t.querySelector('[data-a=full]').onclick = () => toggleFull(t, v);
+  v.addEventListener('dblclick', () => toggleFull(t, v));
   measure(v, t.querySelector('.st'), stream);
   audioMeter(t, stream, !!self);
   $('#stage').appendChild(t);
@@ -1015,7 +1067,7 @@ $('#popMute').onclick = () => {
   applyPeerVol(p); render();
 };
 document.addEventListener('pointerdown', e => { if (popId && !e.target.closest('#pop') && !e.target.closest('#members li')) closePop(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePop(); closeSettings(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePop(); closeSettings(); cancelNoAudio(); } });
 
 function syncSettings() {
   const has = !!micSrc;
